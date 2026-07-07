@@ -1,0 +1,12 @@
+{
+  "mocks": [
+    {
+      "id": "mock.notes-json",
+      "path": "backend/app/storage/notes_json_mock.json",
+      "records": [
+        {"id": "note-1", "title": "First note", "text": "Example note text"},
+        {"id": "note-2", "title": "Second note", "text": "Searchable content"}
+      ]
+    }
+  ]
+}

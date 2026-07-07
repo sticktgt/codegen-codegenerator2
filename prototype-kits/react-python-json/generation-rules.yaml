@@ -1,0 +1,74 @@
+name: react-python-json-generation-rules
+version: 0.1
+
+naming:
+  strip_prefixes:
+    - screen.
+    - widget.
+    - action.
+    - component.
+    - api.
+    - data.
+    - mock.
+
+scheme_to_file_rules:
+  screen:
+    path: "frontend/src/screens/{PascalName}Screen.jsx"
+    ownership: owned
+
+  widget:
+    path: "frontend/src/widgets/{PascalName}.jsx"
+    ownership: owned
+
+  action:
+    path: "frontend/src/actions/{PascalName}.js"
+    ownership: owned
+
+  component:
+    path: "backend/app/services/{snake_name}.py"
+    ownership: owned
+
+  api:
+    path: "backend/app/api/{snake_resource}.py"
+    ownership: owned
+
+  data_entity:
+    path: "backend/app/models/{snake_name}.py"
+    ownership: owned
+
+  mock:
+    path: "backend/app/storage/{snake_name}_mock.json"
+    ownership: owned
+
+integration_files:
+  frontend_routes:
+    path: "frontend/src/routes/routeRegistry.js"
+    allowed_change: true
+    applies_to:
+      - screen
+
+  frontend_app:
+    path: "frontend/src/App.jsx"
+    allowed_change: true
+    applies_to:
+      - screen
+      - widget
+
+  backend_main:
+    path: "backend/app/main.py"
+    allowed_change: true
+    applies_to:
+      - api
+
+  backend_storage_init:
+    path: "backend/app/storage/__init__.py"
+    allowed_change: true
+    applies_to:
+      - mock
+      - data_entity
+
+forbidden_paths:
+  - ".git/"
+  - "node_modules/"
+  - "frontend/package-lock.json"
+  - "prototype/input/"

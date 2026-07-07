@@ -1,0 +1,367 @@
+schema_version: 1
+id: react-python-json-browser-architecture-contract
+version: 0.3-browser
+
+principles:
+  - The pipeline code does not invent feature file names, test names, or business behavior.
+  - Agents propose artifacts; the contract validates artifact type, path, operation, and validation capability.
+  - New source files are created only when represented as an architecture artifact or validation artifact.
+  - Package/dependency files are not writable during normal implementation or repair slices.
+
+
+run_input_contract:
+  canonical_file: run_input.json
+  compatibility_file: implementation_slice.json
+  producer: requirements_stage
+  fields_owned_by_requirements_stage:
+    - slice.slice_id
+    - slice.title
+    - slice.requirement_ids
+    - slice.goal
+    - slice.change_type
+    - slice.acceptance_criteria
+    - slice.selected_existing_elements
+    - slice.constraints
+  fields_owned_by_planner:
+    - resolved_existing_elements
+    - proposed_new_elements
+    - preservation_decisions
+    - file_plan_draft
+    - validation_plan_proposal
+  rules:
+    - run_input.json describes intent and constraints, not file operations.
+    - implementation_slice.json is a compatibility view generated from run_input.json for prompts that still read both canonical and compatibility inputs.
+    - scheme_model.json describes the current accepted prototype state before the slice, not the future desired scheme.
+    - The planner may infer new scheme elements from run_input acceptance criteria and current scheme_model.
+
+planner_output:
+  canonical_design_delta_required: true
+  deprecated_sections:
+    - scheme_delta
+  new_element_implementation_modes:
+    - separate_artifact
+    - screen_internal
+    - existing_artifact_extension
+  preservation_decisions:
+    allowed_decisions:
+      - reuse
+      - wrap
+      - modify_without_repurpose
+      - replace
+    replace_requires_explicit_requirement: true
+  element_classification:
+    resolved_existing_elements: only ids already present in scheme_model.json or explicitly listed in implementation_slice.selected_existing_elements
+    proposed_new_elements: ids introduced by the planner for the current slice and not present in scheme_model.json
+    disjoint_existing_and_new: true
+    selected_by_user_source_requires_selected_existing_elements: true
+  review_severity:
+    metadata_classification_issue: warning_when_file_plan_is_safe
+    unsafe_repurpose_existing_behavior: blocker
+    forbidden_or_unbounded_file_change: blocker
+  notes:
+    - The scenario input describes requirement intent, not file policy.
+    - The planner owns resolved existing elements, proposed new elements, implementation modes, and file operations.
+    - resolved_existing_elements and proposed_new_elements should be disjoint; if the model makes a metadata duplication but the file plan is safe, review should warn rather than block.
+    - New scheme elements implemented inside an existing screen should use implementation_mode screen_internal and name owning_artifact.
+    - New scheme elements implemented by a dedicated file should use implementation_mode separate_artifact and name the planned artifact when known.
+    - Existing accepted behavior is preserved by default for extend_existing_behavior slices.
+
+artifact_types:
+  frontend_screen:
+    description: Web UI screen/view. Create for a new standalone screen, route, tab page, or primary view.
+    allowed_roots:
+      - frontend/src/screens/
+    path_templates:
+      - frontend/src/screens/{PascalName}Screen.jsx
+    allowed_operations:
+      - create
+      - modify
+      - read
+    ui_artifact: true
+
+  frontend_widget:
+    description: Reusable UI widget. Create when UI behavior is reused or large enough to separate from a screen.
+    allowed_roots:
+      - frontend/src/widgets/
+    path_templates:
+      - frontend/src/widgets/{PascalName}.jsx
+    allowed_operations:
+      - create
+      - modify
+      - read
+    ui_artifact: true
+
+  frontend_action:
+    description: Frontend action for a user operation or backend API call. Create for a new user action that can be invoked from UI.
+    allowed_roots:
+      - frontend/src/actions/
+    path_templates:
+      - frontend/src/actions/{PascalName}.js
+    allowed_operations:
+      - create
+      - modify
+      - read
+    ui_artifact: false
+
+  frontend_integration:
+    description: Existing frontend integration file, such as App or route registry. Modify only when wiring a new screen/widget requires it.
+    allowed_roots:
+      - frontend/src/
+    path_templates:
+      - frontend/src/App.jsx
+      - frontend/src/routes/{Name}.js
+    allowed_operations:
+      - modify
+      - read
+    ui_artifact: false
+
+  backend_api:
+    description: Backend API route module. Create or modify when adding a new API resource or endpoint.
+    allowed_roots:
+      - backend/app/api/
+    path_templates:
+      - backend/app/api/{snake_resource}.py
+    allowed_operations:
+      - create
+      - modify
+      - read
+
+  backend_service:
+    description: Backend service/component module. Create or modify when business behavior or persistence orchestration changes.
+    allowed_roots:
+      - backend/app/services/
+    path_templates:
+      - backend/app/services/{snake_name}.py
+    allowed_operations:
+      - create
+      - modify
+      - read
+
+  backend_model:
+    description: Backend data model module. Create or modify when domain data structure changes.
+    allowed_roots:
+      - backend/app/models/
+    path_templates:
+      - backend/app/models/{snake_name}.py
+    allowed_operations:
+      - create
+      - modify
+      - read
+
+  backend_storage:
+    description: Backend local storage adapter or mock storage data. Create or modify when storage representation or local mock data changes.
+    allowed_roots:
+      - backend/app/storage/
+    path_templates:
+      - backend/app/storage/{snake_name}.py
+      - backend/app/storage/{snake_name}_mock.json
+      - backend/app/storage/__init__.py
+      - backend/app/storage/{Name}.json
+    allowed_operations:
+      - create
+      - modify
+      - read
+
+  backend_integration:
+    description: Existing backend integration file such as main.py. Modify only when wiring a new API module requires it.
+    allowed_roots:
+      - backend/app/
+    path_templates:
+      - backend/app/main.py
+    allowed_operations:
+      - modify
+      - read
+
+  backend_test:
+    description: Backend pytest validation file. Create for executable API/service/unit validation checks.
+    allowed_roots:
+      - backend/tests/
+    path_templates:
+      - backend/tests/test_{snake_name}.py
+    allowed_operations:
+      - create
+      - modify
+      - read
+    validation_artifact: true
+    validation_runner: pytest
+
+  frontend_behavior_test:
+    description: Browser or end-to-end UI behavior validation file. Only create when the frontend_behavior capability is enabled and the kit task runner executes those tests.
+    allowed_roots:
+      - frontend/e2e/
+      - frontend/tests/e2e/
+    path_templates:
+      - frontend/e2e/{PascalName}.spec.js
+      - frontend/e2e/{snake_name}.spec.js
+      - frontend/tests/e2e/{PascalName}.spec.js
+      - frontend/tests/e2e/{snake_name}.spec.js
+    allowed_operations:
+      - create
+      - modify
+      - read
+    validation_artifact: true
+    validation_runner: frontend_behavior
+
+
+  frontend_test:
+    description: Frontend unit/component test file. Only create when the kit declares and runs a frontend test runner.
+    allowed_roots:
+      - frontend/src/
+    path_templates:
+      - frontend/src/**/__tests__/{PascalName}.test.js
+      - frontend/src/**/{PascalName}.test.jsx
+    allowed_operations:
+      - create
+      - modify
+      - read
+    validation_artifact: true
+    validation_runner: frontend_test
+
+path_policy:
+  forbidden_exact:
+    - frontend/package.json
+    - frontend/package-lock.json
+    - backend/requirements.txt
+    - frontend/vite.config.js
+    - frontend/playwright.config.js
+    - Taskfile.yml
+    - opencode.json
+    - AGENTS.md
+  forbidden_prefixes:
+    - .git/
+    - node_modules/
+    - frontend/node_modules/
+    - .venv/
+    - dist/
+    - frontend/dist/
+    - prototype/input/
+
+validation_capabilities:
+  backend_pytest:
+    enabled: true
+    executable_check_types:
+      - api
+      - service
+      - unit
+      - integration
+    artifact_type: backend_test
+    file_roots:
+      - backend/tests/
+
+  frontend_unit:
+    enabled: false
+    executable_check_types:
+      - ui_unit
+      - component
+    artifact_type: frontend_test
+    file_roots:
+      - frontend/src/
+    reason: The default lightweight kit does not run frontend unit tests yet.
+
+  frontend_build:
+    enabled: true
+    executable_check_types:
+      - build
+    artifact_type: none
+
+  ui_static:
+    enabled: true
+    executable_check_types:
+      - ui_static
+    artifact_type: none
+
+
+  frontend_behavior:
+    enabled: true
+    executable_check_types:
+      - ui_behavior
+      - browser_e2e
+      - e2e
+    artifact_type: frontend_behavior_test
+    file_roots:
+      - frontend/e2e/
+      - frontend/tests/e2e/
+    validation_intents:
+      - rerun_behavior_test
+      - extend_behavior_test
+      - create_behavior_test
+    required_taskfile_markers:
+      - frontend-behavior
+      - npm run test:e2e
+      - npx playwright test
+    reason: Browser/e2e UI behavior tests are enabled in this kit variant and executed by the frontend-behavior Taskfile target.
+
+validation_policy:
+  intents:
+    rerun_existing:
+      description: Re-run an existing validation file without modifying it. Use for preserved existing behavior when an existing test already covers the behavior.
+      existing_file_policy: read_only
+      operation: read
+      creates_or_modifies_test: false
+    extend_existing_test:
+      description: Modify an existing validation file to add missing coverage. Use only when acceptance criteria are not covered by existing tests.
+      existing_file_policy: may_modify
+      operation: modify
+      creates_or_modifies_test: true
+    create_new_test:
+      description: Create a new validation file when no appropriate existing test file exists and the kit supports the validation capability.
+      new_file_policy: must_create
+      operation: create
+      creates_or_modifies_test: true
+    rerun_behavior_test:
+      description: Rerun an existing browser/e2e UI behavior test without modifying it. Use for UI behavior already covered by an executable browser test.
+      existing_file_policy: read_only
+      operation: read
+      creates_or_modifies_test: false
+    extend_behavior_test:
+      description: Modify an existing browser/e2e UI behavior test because changed UI acceptance criteria are not covered yet.
+      existing_file_policy: may_modify
+      operation: modify
+      creates_or_modifies_test: true
+    create_behavior_test:
+      description: Create a new browser/e2e UI behavior test when UI behavior changed and the frontend_behavior capability is enabled and executable.
+      new_file_policy: must_create
+      operation: create
+      creates_or_modifies_test: true
+  default_intent: rerun_existing_for_preserved_behavior
+  selection_rules:
+    - For preserved existing behavior, first prefer rerun_existing.
+    - Use extend_existing_test only when an acceptance criterion is not covered by existing tests and the file is allowed by the validated file plan.
+    - Use create_new_test only when no suitable existing test file exists and the kit supports that validation capability.
+    - Tests are required when behavior changes, but test file modification is not required when existing executable tests already cover the regression.
+    - UI behavior in this browser kit should be covered by ui_static plus executable browser/e2e behavior tests when UI behavior changes.
+    - When frontend_behavior is enabled and executable, changed UI behavior should get a browser/e2e validation check with create_behavior_test, extend_behavior_test, or rerun_behavior_test.
+    - When frontend_behavior is disabled, do not propose browser/e2e test files; use ui_static and record the missing browser behavior coverage as a kit limitation or warning.
+
+
+ui_validation:
+  enabled: true
+  mode: warning
+  web_ui: true
+  anchor_attribute: data-prototype-id
+  recommended_anchor_format: "{scheme_element_id}"
+  required_for_action_controls: true
+  strict_mode_available: true
+  artifact_types:
+    - frontend_screen
+    - frontend_widget
+  action_artifact_types:
+    - frontend_action
+  notes:
+    - UI controls that implement scheme actions should include a stable data-prototype-id anchor using the exact scheme element id.
+    - New or behaviorally changed buttons, links, form controls, tabs, confirmation controls, and cancel/confirm controls should be anchored.
+    - UI static checks verify anchors/control linkage; browser/e2e checks verify user-visible UI behavior in this kit.
+    - UI anchors may reference action scheme elements used by a screen in the same requirement, not only the screen's own scheme element id.
+
+workspace_isolation:
+  mode: warn
+  forbidden_read_roots:
+    - runs/
+    - samples/
+    - prototype/output/
+  ignored_roots_inside_workspace:
+    - .git/
+    - .venv/
+    - frontend/node_modules/
+    - frontend/dist/
+    - dist/

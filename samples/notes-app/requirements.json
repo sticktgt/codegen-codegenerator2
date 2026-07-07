@@ -1,0 +1,28 @@
+{
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "text": "Пользователь может создать заметку.",
+      "priority": "must",
+      "status": "approved"
+    },
+    {
+      "id": "REQ-002",
+      "text": "Пользователь может редактировать существующую заметку.",
+      "priority": "must",
+      "status": "approved"
+    },
+    {
+      "id": "REQ-003",
+      "text": "Пользователь может просматривать список заметок.",
+      "priority": "must",
+      "status": "approved"
+    },
+    {
+      "id": "REQ-004",
+      "text": "Пользователь может искать заметки по тексту.",
+      "priority": "should",
+      "status": "approved"
+    }
+  ]
+}

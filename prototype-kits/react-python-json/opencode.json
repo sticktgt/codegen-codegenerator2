@@ -1,0 +1,28 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "instructions/architecture.md",
+    "instructions/coding-rules.md",
+    "instructions/traceability-rules.md",
+    "instructions/planning-rules.md",
+    "instructions/validation-rules.md",
+    "instructions/forbidden-changes.md",
+    "instructions/repair-rules.md",
+    "agents/prototype-builder.md"
+  ],
+  "permission": {
+    "edit": "allow",
+    "bash": "deny",
+    "webfetch": "deny"
+  },
+  "watcher": {
+    "ignore": [
+      ".git/**",
+      "node_modules/**",
+      "frontend/node_modules/**",
+      ".venv/**",
+      "dist/**",
+      "frontend/dist/**"
+    ]
+  }
+}

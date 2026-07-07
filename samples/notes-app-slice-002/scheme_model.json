@@ -1,0 +1,82 @@
+{
+  "scheme_id": "SCH-001",
+  "title": "Notes prototype scheme - delete note slice",
+  "elements": [
+    {
+      "id": "screen.note-list",
+      "type": "screen",
+      "name": "Note List",
+      "requirements": [
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "action.delete-note",
+      "type": "action",
+      "name": "Delete Note",
+      "requirements": [
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "component.note-service",
+      "type": "component",
+      "name": "Note Service",
+      "requirements": [
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "api.notes",
+      "type": "api",
+      "name": "Notes API",
+      "resource": "notes",
+      "requirements": [
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "data.note",
+      "type": "data_entity",
+      "name": "Note",
+      "requirements": [
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "mock.notes-json",
+      "type": "mock",
+      "name": "Notes JSON",
+      "requirements": [
+        "REQ-005"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "screen.note-list",
+      "to": "action.delete-note",
+      "type": "uses"
+    },
+    {
+      "from": "action.delete-note",
+      "to": "api.notes",
+      "type": "calls"
+    },
+    {
+      "from": "api.notes",
+      "to": "component.note-service",
+      "type": "delegates_to"
+    },
+    {
+      "from": "component.note-service",
+      "to": "data.note",
+      "type": "updates"
+    },
+    {
+      "from": "data.note",
+      "to": "mock.notes-json",
+      "type": "stored_in"
+    }
+  ]
+}

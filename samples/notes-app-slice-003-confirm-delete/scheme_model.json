@@ -1,0 +1,48 @@
+{
+  "scheme_id": "SCH-001",
+  "title": "Notes prototype scheme - current state before confirm-delete slice",
+  "elements": [
+    {
+      "id": "screen.note-list",
+      "type": "screen",
+      "name": "Note List",
+      "requirements": [
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "action.delete-note",
+      "type": "action",
+      "name": "Delete Note",
+      "requirements": [
+        "REQ-005"
+      ],
+      "accepted_behavior": "Calls the backend DELETE notes API and removes a note."
+    },
+    {
+      "id": "api.notes",
+      "type": "api",
+      "name": "Notes API",
+      "resource": "notes",
+      "requirements": [
+        "REQ-005"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "screen.note-list",
+      "to": "action.delete-note",
+      "type": "uses"
+    },
+    {
+      "from": "action.delete-note",
+      "to": "api.notes",
+      "type": "calls"
+    }
+  ],
+  "notes": [
+    "This model describes the existing prototype state before SLICE-003 planning.",
+    "The planner may propose additional scheme elements needed by the current requirement."
+  ]
+}

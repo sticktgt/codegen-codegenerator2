@@ -1,0 +1,21 @@
+{
+  "data_sources": [
+    {
+      "id": "mock.notes-json",
+      "type": "mock",
+      "name": "Notes JSON",
+      "format": "json",
+      "status": "generated",
+      "scheme_elements": [
+        "mock.notes-json",
+        "data.note"
+      ],
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    }
+  ]
+}

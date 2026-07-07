@@ -1,0 +1,42 @@
+{
+  "slice_id": "SLICE-001",
+  "title": "Basic note management",
+  "requirements": [
+    "REQ-001",
+    "REQ-002",
+    "REQ-003",
+    "REQ-004"
+  ],
+  "scheme_elements": [
+    "screen.note-list",
+    "widget.note-search",
+    "action.create-note",
+    "action.edit-note",
+    "component.note-service",
+    "api.notes",
+    "data.note",
+    "mock.notes-json"
+  ],
+  "data_sources": [
+    "mock.notes-json"
+  ],
+  "allowed_scope": [
+    "create note",
+    "edit note",
+    "list notes",
+    "search notes by text",
+    "local JSON mock storage"
+  ],
+  "forbidden_scope": [
+    "authentication",
+    "external integrations",
+    "database migrations",
+    "deployment configuration"
+  ],
+  "acceptance_criteria": [
+    "User can see a list of notes.",
+    "User can create a note.",
+    "User can edit an existing note.",
+    "User can search notes by text."
+  ]
+}

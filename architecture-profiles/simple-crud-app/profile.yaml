@@ -1,0 +1,43 @@
+id: simple-crud-app
+title: Simple CRUD Application
+version: 0.1
+purpose: Простые CRUD-прототипы с экранами, действиями, сервисами, API, сущностями данных и моками.
+
+default_prototype_kit: react-python-json
+
+supported_scheme_elements:
+  - screen
+  - widget
+  - action
+  - component
+  - api
+  - data_entity
+  - mock
+
+supported_features:
+  - list_view
+  - detail_view
+  - form_editor
+  - text_search
+  - local_crud
+  - local_json_storage
+  - mock_data
+
+unsupported_features:
+  - real_authentication
+  - complex_rbac
+  - external_enterprise_integrations
+  - production_deployment
+  - high_load_processing
+
+scheme_layers:
+  frontend:
+    - screen
+    - widget
+    - action
+  backend:
+    - component
+    - api
+  data:
+    - data_entity
+    - mock

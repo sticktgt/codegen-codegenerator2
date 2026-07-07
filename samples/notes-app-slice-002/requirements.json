@@ -1,0 +1,10 @@
+{
+  "requirements": [
+    {
+      "id": "REQ-005",
+      "text": "Пользователь может удалить существующую заметку.",
+      "priority": "must",
+      "status": "approved"
+    }
+  ]
+}

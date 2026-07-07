@@ -1,0 +1,23 @@
+{
+  "slice_id": "SLICE-003",
+  "title": "Confirm before deleting a note",
+  "requirements": [
+    "REQ-006"
+  ],
+  "goal": "Before deleting a note, ask the user to confirm the destructive action.",
+  "change_type": "extend_existing_behavior",
+  "selected_existing_elements": [],
+  "preserve_existing_behavior_by_default": true,
+  "acceptance_criteria": [
+    "Clicking Delete does not immediately delete the note; it shows a confirmation state.",
+    "Clicking Cancel hides the confirmation state and keeps the note unchanged.",
+    "Clicking Confirm deletes the note and refreshes the list.",
+    "Delete, Confirm, and Cancel controls have stable data-prototype-id anchors linked to scheme actions.",
+    "Existing backend DELETE behavior remains valid."
+  ],
+  "constraints": [
+    "No new npm dependencies.",
+    "No backend API contract changes.",
+    "No package.json changes."
+  ]
+}

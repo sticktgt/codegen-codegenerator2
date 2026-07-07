@@ -1,0 +1,39 @@
+version: '3'
+
+tasks:
+  install:
+    desc: Install backend and frontend dependencies
+    cmds:
+      - python3 -m venv .venv
+      - .venv/bin/python -m pip install --upgrade pip
+      - .venv/bin/python -m pip install -r backend/requirements.txt
+      - cd frontend && npm install --no-package-lock
+
+  smoke:
+    desc: Run backend smoke check
+    cmds:
+      - cd backend && PYTHONPATH=. ../.venv/bin/python -m app.smoke
+
+  test:
+    desc: Run backend tests
+    cmds:
+      - cd backend && PYTHONPATH=. ../.venv/bin/python -m pytest
+
+  build:
+    desc: Build frontend
+    cmds:
+      - cd frontend && npm run build
+
+  validate:
+    desc: Install dependencies and validate prototype
+    cmds:
+      - task: install
+      - task: smoke
+      - task: test
+      - task: build
+
+  export:
+    desc: Export prototype artifact
+    cmds:
+      - mkdir -p dist
+      - zip -r dist/prototype_artifact.zip frontend backend prototype -x "frontend/node_modules/*" ".venv/*" "frontend/dist/*"

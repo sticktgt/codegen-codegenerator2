@@ -1,0 +1,53 @@
+# Runtime runs and generated pipeline artifacts
+runs/*
+!runs/.gitkeep
+prototype/input/
+prototype/output/
+prototype/logs/
+prototype/dist/
+
+# Archives and generated bundles
+*.zip
+*.tar
+*.tar.gz
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+.playwright/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo

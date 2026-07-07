@@ -1,0 +1,33 @@
+{
+  "slice_id": "SLICE-004",
+  "title": "Show visible and total note count",
+  "requirements": [
+    "REQ-007"
+  ],
+  "goal": "Show a note count summary on the note list screen so the user can see how many notes are currently visible and how many notes exist in total.",
+  "change_type": "extend_existing_behavior",
+  "selected_existing_elements": [
+    "screen.note-list",
+    "widget.note-search"
+  ],
+  "preserve_existing_behavior_by_default": true,
+  "acceptance_criteria": [
+    "The note list screen shows a visible count summary near the search/list area.",
+    "The count summary shows both the number of currently visible notes and the total number of loaded notes.",
+    "When the user searches and the list is filtered, the visible count updates while the total count stays unchanged.",
+    "When the user clears the search query, the visible count returns to the total count.",
+    "The count summary has a stable data-prototype-id anchor linked to the note count summary UI element.",
+    "Existing create, edit, delete, and confirm-delete behavior remains valid."
+  ],
+  "constraints": [
+    "No backend API contract changes.",
+    "No data model changes.",
+    "No package.json changes.",
+    "No new npm dependencies.",
+    "Prefer a distinct reusable UI widget if the architecture contract supports a widget artifact."
+  ],
+  "notes": [
+    "This slice intentionally checks that the planner can introduce a new UI widget artifact and wire it into an existing screen.",
+    "The requirements stage does not prescribe the widget file name; the planner owns artifact and path decisions."
+  ]
+}

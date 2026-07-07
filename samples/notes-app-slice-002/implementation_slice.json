@@ -1,0 +1,41 @@
+{
+  "slice_id": "SLICE-002",
+  "title": "Delete note",
+  "requirements": [
+    "REQ-005"
+  ],
+  "scheme_elements": [
+    "screen.note-list",
+    "action.delete-note",
+    "component.note-service",
+    "api.notes",
+    "data.note",
+    "mock.notes-json"
+  ],
+  "data_sources": [
+    "mock.notes-json"
+  ],
+  "allowed_scope": [
+    "delete note",
+    "delete note button on note list screen",
+    "delete note frontend action",
+    "DELETE notes API endpoint",
+    "delete note service method",
+    "update local JSON mock storage"
+  ],
+  "forbidden_scope": [
+    "authentication",
+    "external integrations",
+    "database migrations",
+    "routing library",
+    "new npm dependencies",
+    "package.json changes",
+    "new helper files outside expected_files.json"
+  ],
+  "acceptance_criteria": [
+    "User can delete an existing note from the note list.",
+    "Deleted note disappears from the list after deletion.",
+    "Backend exposes a DELETE endpoint for notes.",
+    "Validation passes without adding npm dependencies."
+  ]
+}

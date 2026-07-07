@@ -1,0 +1,111 @@
+{
+  "scheme_id": "SCH-001",
+  "title": "Notes prototype scheme",
+  "elements": [
+    {
+      "id": "screen.note-list",
+      "type": "screen",
+      "name": "Note List",
+      "requirements": [
+        "REQ-003",
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "widget.note-search",
+      "type": "widget",
+      "name": "Note Search",
+      "requirements": [
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "action.create-note",
+      "type": "action",
+      "name": "Create Note",
+      "requirements": [
+        "REQ-001"
+      ]
+    },
+    {
+      "id": "action.edit-note",
+      "type": "action",
+      "name": "Edit Note",
+      "requirements": [
+        "REQ-002"
+      ]
+    },
+    {
+      "id": "component.note-service",
+      "type": "component",
+      "name": "Note Service",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "api.notes",
+      "type": "api",
+      "name": "Notes API",
+      "resource": "notes",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "data.note",
+      "type": "data_entity",
+      "name": "Note",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "mock.notes-json",
+      "type": "mock",
+      "name": "Notes JSON",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "screen.note-list",
+      "to": "widget.note-search",
+      "type": "contains"
+    },
+    {
+      "from": "screen.note-list",
+      "to": "component.note-service",
+      "type": "uses"
+    },
+    {
+      "from": "component.note-service",
+      "to": "api.notes",
+      "type": "exposed_by"
+    },
+    {
+      "from": "component.note-service",
+      "to": "data.note",
+      "type": "reads_writes"
+    },
+    {
+      "from": "data.note",
+      "to": "mock.notes-json",
+      "type": "stored_in"
+    }
+  ]
+}
