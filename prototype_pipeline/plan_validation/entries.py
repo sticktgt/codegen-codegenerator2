@@ -79,6 +79,7 @@ def _resolve_artifact_type(entry: dict[str, Any], path: str, contract: dict[str,
     return inferred
 
 
+
 def _validate_artifact_type(
     path: str,
     artifact_type: str | None,

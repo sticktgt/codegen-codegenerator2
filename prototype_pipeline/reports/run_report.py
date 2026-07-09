@@ -27,6 +27,19 @@ def write_simple_report(run: Path, summary: dict[str, Any]) -> None:
     environment_issue = validation.get("environment_issue") or {}
     if environment_issue:
         lines.append(f"Validation environment issue: `{environment_issue.get('code')}`")
+    failed_stages = [stage for stage in validation.get("stages", []) if stage.get("status") == "failed"]
+    root_failed = validation.get("root_failed_stages") or [
+        stage for stage in failed_stages if not stage.get("blocked_by_failed_stages")
+    ]
+    downstream_failed = validation.get("downstream_failed_stages") or [
+        stage for stage in failed_stages if stage.get("blocked_by_failed_stages")
+    ]
+    if failed_stages:
+        lines.append("Validation failed stages: " + ", ".join(f"`{stage.get('name')}`" for stage in failed_stages))
+    if root_failed:
+        lines.append("Root failed stages: " + ", ".join(f"`{stage.get('name')}`" for stage in root_failed))
+    if downstream_failed:
+        lines.append("Downstream/context failed stages: " + ", ".join(f"`{stage.get('name')}`" for stage in downstream_failed))
     lines.append(f"File boundary: `{boundary.get('status', 'not_run')}`")
     incomplete = summary.get("traceability_incomplete") or []
     if incomplete:
@@ -54,6 +67,18 @@ def write_simple_report(run: Path, summary: dict[str, Any]) -> None:
         f"{format_int(totals.get('input_tokens', 0))} | {format_int(totals.get('output_tokens', 0))} | "
         f"{format_int(totals.get('messages_delta', 0))} | {format_int(tool_total)} |"
     )
+    unreliable_usage = [
+        item for item in summary.get("usage_phases", [])
+        if (item.get("quality") or {}).get("status") == "unreliable"
+    ]
+    if unreliable_usage:
+        lines.append("")
+        lines.append("Usage metrics warnings:")
+        for item in unreliable_usage:
+            quality = item.get("quality") or {}
+            lines.append(
+                f"- `{item.get('phase')}`: {quality.get('message', 'usage metrics are approximate')}"
+            )
     lines.append("")
     changed = summary.get("changed_files") or {}
     lines.append("## Files")
@@ -91,6 +116,22 @@ def write_simple_report(run: Path, summary: dict[str, Any]) -> None:
         lines.append("Missing required changes:")
         for item in changed.get("missing_required_changes", []):
             lines.append(f"- `{item.get('path')}`: {item.get('reason')} ({item.get('policy')})")
+
+    stages = validation.get("stages") or []
+    if stages:
+        lines.append("")
+        lines.append("## Validation stages")
+        lines.append("")
+        lines.append("| Stage | Status | Exit code | Duration | Blocked by | Repair priority |")
+        lines.append("|---|---:|---:|---:|---|---|")
+        for stage in stages:
+            exit_code = stage.get("exit_code")
+            blocked_by = ", ".join(str(value) for value in (stage.get("blocked_by_failed_stages") or []))
+            lines.append(
+                f"| {stage.get('name')} | {stage.get('status')} | "
+                f"{'' if exit_code is None else exit_code} | {stage.get('duration_seconds', 0)}s | "
+                f"{blocked_by} | {stage.get('repair_priority', '')} |"
+            )
 
     if environment_issue:
         lines.append("")
@@ -162,6 +203,17 @@ def write_simple_report(run: Path, summary: dict[str, Any]) -> None:
             lines.append(f"- `{warning.get('path')}`: {warning.get('message')} ({warning.get('code')})")
         for blocker in ui_static.get("blockers", [])[:10]:
             lines.append(f"- BLOCKER `{blocker.get('path')}`: {blocker.get('message')} ({blocker.get('code')})")
+
+    workspace_restore = validation.get("workspace_restore") or {}
+    if isinstance(workspace_restore, dict) and workspace_restore.get("enabled"):
+        lines.append("")
+        lines.append("## Validation workspace restore")
+        lines.append("")
+        lines.append(f"Tracked semantic files: `{workspace_restore.get('tracked_files', 0)}`")
+        lines.append(f"Restored after validation: `{len(workspace_restore.get('restored_files') or [])}`")
+        restore_errors = workspace_restore.get("errors") or []
+        if restore_errors:
+            lines.append(f"Restore errors: `{len(restore_errors)}`")
 
     tool_failures = [
         (result.get("phase"), failure)

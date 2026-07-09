@@ -31,8 +31,9 @@ run_input_contract:
   rules:
     - run_input.json describes intent and constraints, not file operations.
     - implementation_slice.json is a compatibility view generated from run_input.json for prompts that still read both canonical and compatibility inputs.
-    - scheme_model.json describes the current accepted prototype state before the slice, not the future desired scheme.
-    - The planner may infer new scheme elements from run_input acceptance criteria and current scheme_model.
+    - scheme_model.json is scheme context from the requirements/design stage. It may contain accepted elements, target elements to implement in this slice, or both. It is not proof that code artifacts already exist.
+    - The actual implementation state is the workspace file tree. The planner must inspect existing workspace files to decide create/modify/read operations.
+    - The planner may infer additional scheme elements from run_input acceptance criteria and current scheme_model when needed.
 
 planner_output:
   canonical_design_delta_required: true
@@ -60,7 +61,8 @@ planner_output:
     forbidden_or_unbounded_file_change: blocker
   notes:
     - The scenario input describes requirement intent, not file policy.
-    - The planner owns resolved existing elements, proposed new elements, implementation modes, and file operations.
+    - The planner owns resolved existing elements, proposed new elements, implementation modes, artifact types, and file operations.
+    - Python validation must not rewrite artifact types or create/modify decisions to repair architectural meaning; the model must produce an internally consistent plan.
     - resolved_existing_elements and proposed_new_elements should be disjoint; if the model makes a metadata duplication but the file plan is safe, review should warn rather than block.
     - New scheme elements implemented inside an existing screen should use implementation_mode screen_internal and name owning_artifact.
     - New scheme elements implemented by a dedicated file should use implementation_mode separate_artifact and name the planned artifact when known.
@@ -149,7 +151,7 @@ artifact_types:
       - read
 
   backend_storage:
-    description: Backend local storage adapter or mock storage data. Create or modify when storage representation or local mock data changes.
+    description: Backend local storage adapter, storage package initializer, or mock storage data. Use this artifact type for backend/app/storage/__init__.py and backend/app/storage/* files; do not classify storage package initialization as backend_integration.
     allowed_roots:
       - backend/app/storage/
     path_templates:
@@ -163,7 +165,7 @@ artifact_types:
       - read
 
   backend_integration:
-    description: Existing backend integration file such as main.py. Modify only when wiring a new API module requires it.
+    description: Existing backend application integration file. In this kit this means backend/app/main.py only. Do not use backend_integration for backend/app/storage/__init__.py.
     allowed_roots:
       - backend/app/
     path_templates:
@@ -256,7 +258,7 @@ validation_capabilities:
     artifact_type: frontend_test
     file_roots:
       - frontend/src/
-    reason: The default lightweight kit does not run frontend unit tests yet.
+    reason: The browser-enabled kit does not run frontend unit tests yet.
 
   frontend_build:
     enabled: true
@@ -351,7 +353,8 @@ ui_validation:
     - UI controls that implement scheme actions should include a stable data-prototype-id anchor using the exact scheme element id.
     - New or behaviorally changed buttons, links, form controls, tabs, confirmation controls, and cancel/confirm controls should be anchored.
     - UI static checks verify anchors/control linkage; browser/e2e checks verify user-visible UI behavior in this kit.
-    - UI anchors may reference action scheme elements used by a screen in the same requirement, not only the screen's own scheme element id.
+    - Required UI anchors are checked per changed UI file using the file-plan item's direct scheme_elements.
+    - Cross-file requirement-linked scheme elements are diagnostics context only; they do not force a widget to carry action anchors implemented by a screen.
 
 workspace_isolation:
   mode: warn

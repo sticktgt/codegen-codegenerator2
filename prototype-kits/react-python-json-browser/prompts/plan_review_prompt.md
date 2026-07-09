@@ -1,3 +1,9 @@
+MANDATORY OUTPUT CONTRACT:
+- You must write `prototype/output/plan_review.json` before finishing this phase.
+- A text summary in stdout is not sufficient.
+- If the plan is safe, write status `pass` or `warning`; if unsafe, write status `blocker`.
+- Do not end the response until `prototype/output/plan_review.json` has been written.
+
 Review the proposed plan. Do not implement code.
 
 Read:
@@ -10,10 +16,22 @@ Read:
 - prototype/input/kit.yaml
 - prototype/input/generation-rules.yaml
 - prototype/input/architecture-contract.yaml
+- instructions/architecture.md
+- instructions/planning-rules.md
+- instructions/validation-rules.md
 - current workspace source files as needed
+
+Canonical instruction paths:
+- Runtime workspace copies live under `instructions/...` at the workspace root.
+- Markdown instructions are available from the workspace-root `instructions/` tree.
+- Use `prototype/input/...` only for JSON/YAML run inputs and machine-readable contracts.
 
 Check:
 - Does the plan cover the scenario/run input requirements and acceptance criteria?
+- Does the plan follow the layer rules in `instructions/architecture.md` without relying on Python to repair artifact types or create/modify decisions?
+- Does every file-plan row use an artifact type that matches its path and responsibility?
+- Are existing skeleton/integration files planned as modify/read rather than create?
+- Is `backend/app/storage/__init__.py`, if used, classified as `backend_storage` rather than `backend_integration`?
 - If `run_input.json` is present, does the plan treat it as requirement intent rather than a file plan?
 - Are proposed files and validation checks minimal and relevant?
 - Are any backend/frontend layers missing?
@@ -25,7 +43,7 @@ Check:
 - If the plan modifies an existing artifact, does `design_delta.preservation_decisions` explain why reuse/wrapping is insufficient and what behavior remains preserved?
 - For new scheme elements without a dedicated file, does `implementation_mode: "screen_internal"` name an `owning_artifact` and is the owning artifact allowed by the file plan?
 - For dedicated files, does `implementation_mode: "separate_artifact"` align with the proposed file plan?
-- Does the plan avoid new dependencies and forbidden architecture changes?
+- Does the plan avoid unnecessary dependencies, and are any proposed dependency/package changes explicitly allowed by the contract, included in the file plan, and justified?
 - Does the validation plan use explicit `validation_intent` for executable test-file checks, while omitting `validation_intent` for non-file checks such as `ui_static`?
 - For preserved existing behavior, does the validation plan prefer `rerun_existing` before modifying or creating tests?
 - If the plan proposes `extend_existing_test` or `create_new_test`, is there a clear acceptance-criteria gap that existing tests do not cover?
@@ -67,3 +85,8 @@ Workspace path discipline:
 - Read and write `prototype/input/...` and `prototype/output/...` relative to the workspace root.
 - Never use `/runs/<run-name>/prototype/...`; the valid path is `/runs/<run-name>/workspace/prototype/...` when an absolute path is unavoidable.
 - Do not read from run-level `input/` or `output/` unless the prompt explicitly asks for a diagnostics-only fallback.
+
+Final action requirement:
+- Use the file write tool to create or overwrite `prototype/output/plan_review.json` with valid JSON exactly matching the schema above.
+- After writing the file, you may provide a short textual summary.
+- Never provide only a textual review without writing `prototype/output/plan_review.json`.

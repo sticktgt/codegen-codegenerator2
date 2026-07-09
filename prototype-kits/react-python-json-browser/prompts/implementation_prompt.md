@@ -10,8 +10,23 @@ Read:
 - prototype/input/kit.yaml
 - prototype/input/generation-rules.yaml
 - prototype/input/architecture-contract.yaml
+- instructions/architecture.md
+- instructions/coding-rules.md
+- instructions/validation-rules.md
+- instructions/pipeline-output.md
+- instructions/testing/backend-pytest.md, if creating or updating backend pytest tests
+- instructions/testing/browser-e2e.md, if creating or updating browser/e2e tests
+
+Canonical instruction paths:
+- Runtime workspace copies live under `instructions/...` at the workspace root.
+- Markdown instructions are available from the workspace-root `instructions/` tree.
+- Use `prototype/input/...` only for JSON/YAML run inputs and machine-readable contracts.
 
 Rules:
+
+Pipeline phase output discipline:
+- Do not rely on optional OpenCode todo tools (`todowrite` / `todoread`) as durable pipeline artifacts. The required JSON report files are the structured phase output.
+- Do not call optional todo tools merely to mirror `file_plan.json`; use the approved file plan and report files to record progress and changes.
 - Use prototype/input/file_plan.json as the only allowed file plan.
 - Do not infer additional files from design_delta or naming symmetry. If a new scheme element is screen-internal, implement it only inside its owning artifact when that artifact is allowed by file_plan.json.
 - Do not create, edit, rename, or delete files outside file_plan.json.
@@ -19,14 +34,25 @@ Rules:
   - must_create: create the file if it does not exist.
   - may_modify / modify_allowed: modify only if needed.
   - no_change / may_read / read_only: read only; do not edit.
+
+File operation discipline:
+- For any file-plan item with operation `create` or policy `must_create`, do not read the target file first. It is expected to be missing. Create it with Write.
+- For any file-plan item with operation `modify` or policy `may_modify`, read the existing file and use Edit only with exact text. If the existing file is empty, use Write as an intentional full-file replacement.
+- Do not convert a planned modify of a skeleton/integration file into a new file creation.
+- For any existing empty or whitespace-only file that must be replaced entirely, use Write for an intentional full-file replacement; never call Edit with an empty `oldString`. This commonly applies to skeleton package files such as `__init__.py`, but the rule is general.
+- Use Edit only when modifying an existing file and you have the exact old text to replace.
+- Do not treat failed reads of planned create files as a validation problem; create the planned files.
+- Do not run the full validation suite from OpenCode implementation. The official validation is performed later by the pipeline. Do not run `tools/run_validation.py` from implementation. Use only minimal, phase-local diagnostics when necessary, such as Python syntax checks for generated backend files.
+- When running a focused diagnostic through a shell/bash tool, omit the tool-level `timeout` argument unless it is required. If a timeout argument is required by the runtime, it must be an integer value, not a quoted string or float such as `30000.0`.
+- For frontend diagnostics, do not use `node --check` on `.jsx` files or Playwright spec files. JSX and Playwright ESM syntax are handled by the configured Vite/Playwright commands, not by raw Node syntax checking.
 - Do not rewrite the whole application.
 - Do not implement requirements outside the current scenario/run input slice.
 - If `run_input.json` is present, use it only as requirement context; do not infer extra writable files from it beyond file_plan.json.
 - Preserve existing accepted behavior by default. If the file plan marks an existing artifact as read-only/no_change, reuse it rather than repurposing it.
 - For confirm/cancel flows, keep existing destructive actions/API wrappers stable unless file_plan.json explicitly allows and explains changing them.
 - If the slice extends existing behavior, prefer wrappers, UI state, or new artifacts over changing the stable responsibility of an existing action/API/service.
-- Do not add dependencies or edit package files unless explicitly allowed in file_plan.json.
-- If a planned test or implementation appears to require a missing dependency, do not add it; report the limitation in implementation_report.json.
+- New dependencies are allowed only when file_plan.json explicitly includes the relevant package/config files as writable and the plan explains why the dependency is needed. Do not invent unplanned dependency files.
+- If a planned test or implementation would be better with a missing dependency but package/config files are not writable, use available kit dependencies when reasonable or report the limitation in implementation_report.json for replanning.
 - Do not use react-router-dom, axios, or undeclared external packages.
 - Use backend imports rooted at app.*, not backend.app.*.
 - If a validation test file is listed in file_plan.json, follow its policy and `validation_intent`:
@@ -39,6 +65,11 @@ Rules:
 - For non-file checks such as `ui_static`, do not create any test file; just implement the required UI anchors in the allowed UI artifact.
 - Otherwise do not create tests.
 - Generated or modified tests must use isolated temporary data/fixtures. Do not leave tracked mock storage files such as backend/app/storage/*.json changed after tests run.
+- Backend tests must not edit implementation source files on disk as a fixture strategy. Do not rewrite service modules from tests to change a storage path. Prefer constructing/injecting the service with a temporary path, monkeypatching the actual route-module dependency before requests, dependency overrides, or an explicit app/service factory when the generated implementation supports it.
+- If a backend route keeps a module-level service instance, tests that replace that service must patch the route module object that the endpoint actually uses; patching a helper function after the singleton has been created is not enough.
+- Backend pytest tests should use the simplest style that proves the requirement. Synchronous FastAPI `TestClient` is usually enough for ordinary API behavior, but async pytest plugins or other test dependencies are allowed when already available or when file_plan.json explicitly allows the package-file change.
+- For JSON-backed services, prefer an implementation shape that is testable without modifying source files at test time: for example a service constructor parameter, dependency function, or route-level service object that tests can replace with an isolated instance.
+- Browser/e2e tests for local JSON-backed prototypes must follow `instructions/testing/browser-e2e.md`: use repeatable test-owned data for mutating flows, avoid cross-test state dependencies, use prototype anchors through the configured `data-prototype-id` test id attribute, avoid broad locators when duplicate visible text is likely, and do not inspect backend storage files directly from Playwright.
 - If validation_plan.json proposes a test file that is not present in file_plan.json, do not create it; report the limitation.
 - Write prototype/output/implementation_report.json.
 - Write prototype/output/change_manifest.json.
@@ -69,6 +100,8 @@ UI implementation requirement:
 - This applies to buttons, links, form controls, confirmation controls, cancel/confirm actions, tabs, and other clickable controls introduced or behaviorally changed by the slice.
 - For every created or modified frontend screen file whose file-plan item contains a `screen.*` scheme element, ensure the screen root/outermost JSX element has `data-prototype-id` with that exact `screen.*` id, for example `data-prototype-id="screen.note-list"`. Preserve an existing screen anchor if it already exists.
 - For every created or modified frontend widget file whose file-plan item contains a `widget.*` scheme element, ensure the widget root/outermost JSX element has `data-prototype-id` with that exact `widget.*` id, for example `data-prototype-id="widget.note-count-summary"`.
+- Use each direct `screen.*` or `widget.*` root anchor only once per source file. Do not repeat the same screen/widget anchor on nested headings, wrappers, labels, or controls; browser tests may locate these anchors in strict mode.
+- Anchor obligations are scoped to the current file-plan item: do not add unrelated action anchors to a widget just because the same requirement also uses actions in a screen. Put action anchors on the actual UI controls that implement those actions, usually in the screen or component that renders the buttons/form controls.
 - If the UI control, screen, or widget cannot reasonably have an anchor, document the deviation in `implementation_report.json`; do not silently omit it.
 
 Workspace path discipline:

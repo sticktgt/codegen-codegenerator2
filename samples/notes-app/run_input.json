@@ -1,0 +1,43 @@
+{
+  "run_input_version": 1,
+  "source": "requirements_stage",
+  "slice": {
+    "slice_id": "SLICE-001",
+    "title": "Basic note management",
+    "requirement_ids": [
+      "REQ-001",
+      "REQ-002",
+      "REQ-003",
+      "REQ-004"
+    ],
+    "goal": "Build the initial notes application prototype: list notes, create notes, edit notes, and search notes by text using local JSON mock storage.",
+    "change_type": "create_new",
+    "selected_existing_elements": [],
+    "preserve_existing_behavior_by_default": true,
+    "acceptance_criteria": [
+      "User can see a list of notes.",
+      "User can create a note.",
+      "User can edit an existing note.",
+      "User can search notes by text.",
+      "The main screen and interactive controls have stable data-prototype-id anchors linked to scheme elements.",
+      "The prototype uses local JSON mock storage and does not require external integrations."
+    ],
+    "constraints": [
+      "No authentication.",
+      "No external integrations.",
+      "No database migrations.",
+      "Use local JSON mock storage from the sample mock plan.",
+      "No new dependencies beyond the selected kit."
+    ]
+  },
+  "requirements_file": "requirements.json",
+  "current_prototype": {
+    "scheme_model_file": "scheme_model.json",
+    "data_sources_file": "data_sources.json",
+    "mock_plan_file": "mock_plan.json"
+  },
+  "notes": [
+    "This is the canonical greenfield baseline scenario used after cloning or moving the project.",
+    "The scheme_model.json in this sample describes the intended initial prototype scheme for SLICE-001."
+  ]
+}

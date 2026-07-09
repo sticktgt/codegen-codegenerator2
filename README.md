@@ -1,39 +1,126 @@
-# Prototype Dev Spike
+# codegenerator2
 
-`prototype-dev-spike` — стенд для управляемой генерации прототипов приложений с помощью OpenCode/LLM-агентов.
+`codegenerator2` — экспериментальный стенд для управляемой генерации прототипов приложений с помощью OpenCode/LLM-агентов.
 
-Проект проверяет не свободный чат с агентом, а воспроизводимый pipeline, в котором агент предлагает план и реализует изменения, а наш код контролирует границы, структуру, validation и итоговый отчет.
+Проект проверяет не свободную работу агента со всем репозиторием, а воспроизводимый pipeline: requirements-сценарий превращается в план изменений, план формально проверяется, агент реализует только разрешенные файлы, после чего наш Python-код проверяет границы, UI anchors, validation, traceability и формирует итоговый отчет.
 
 Основной контракт текущего workflow:
 
 ```text
-samples/<slice>/run_input.json
+samples/<scenario>/run_input.json
 → runs/<run>/output/scenario_result.json
 ```
 
-`run_input.json` — канонический вход slice от requirements stage. `scenario_result.json` — основной машинно-читаемый итог для будущего UI/отчета.
+`run_input.json` — канонический вход от requirements stage. `scenario_result.json` — основной машинно-читаемый итог для будущего UI/отчета.
 
 ## Основные принципы
 
 - Pipeline-код не придумывает бизнес-логику, имена новых компонентов, тестов или функций.
 - Агент на этапе planning предлагает `design_delta`, `file_plan` и `validation_plan`.
-- Pipeline проверяет формальные контракты: допустимые корни файлов, типы артефактов, операции `create/modify/read`, validation capability, dependency boundary и traceability.
-- Реализация выполняется только в пределах утвержденного `file_plan.json`.
+- Pipeline проверяет machine-readable safety boundary: обязательные JSON outputs, безопасные пути, forbidden paths, allowed roots, dependency boundary, git diff boundaries, static UI anchors, validation и traceability. Архитектурный смысл плана должна сформировать и самопроверить модель по правилам kit-а.
+- Реализация выполняется только в пределах утвержденного `file_plan.json`; Python не исправляет содержательный смысл плана, чтобы сделать его удобнее для реализации.
 - Существующее поведение сохраняется по умолчанию и проверяется regression validation.
+- Dependency/package changes не запрещены как класс, но должны быть явно предложены планом, разрешены контрактом, включены в `file_plan.json` и иметь краткое обоснование. Обычные slice должны по возможности использовать зависимости kit-а.
 - Итог выполнения читается через `scenario_result.json`, а не через набор внутренних файлов.
+
+## Архитектурная идея
+
+Задача проекта — генерировать код в рамках заранее описанного архитектурного шаблона, а не свободно редактировать репозиторий. Шаблон задает уровни приложения и правила для каждого уровня:
+
+- UI screens;
+- UI widgets;
+- frontend actions;
+- backend API modules;
+- backend services/components;
+- backend data models;
+- backend storage/mock data;
+- validation tests;
+- existing skeleton/integration files.
+
+Для каждого уровня kit описывает место в проекте, допустимые операции, naming convention и validation capabilities. Требования описывают, что нужно реализовать; architecture kit описывает, где и как это должно быть реализовано.
+
+Планирование должно происходить на стороне модели:
+
+```text
+requirements + scheme context + architecture rules
+→ model-generated design_delta / file_plan_draft / validation_plan_proposal
+→ model self-check against architecture rules
+→ final plan JSON
+```
+
+Python не должен подменять этот процесс и становиться скрытым planner-ом. Если модель выбрала неверный слой, неверный `artifact_type` или неверную операцию `create/modify`, это ошибка плана, которую надо исправлять правилами/prompt-ами или будущим replan-механизмом, а не содержательной нормализацией в Python.
+
+## Где живут правила
+
+Правила активного архитектурного шаблона находятся в kit-е:
+
+```text
+prototype-kits/react-python-json-browser/
+  architecture-contract.yaml      machine-readable contract: artifact types, roots, operations, validation capabilities
+  generation-rules.yaml           naming and scheme-to-file mapping
+  instructions/architecture.md    human-readable layer rules and skeleton/integration rules
+  instructions/planning-rules.md  planner checklist and output rules
+  instructions/coding-rules.md    implementation coding rules
+  instructions/validation-rules.md validation and UI anchor rules
+  prompts/                        phase prompts that reference these rules
+  examples/                       examples, not ready-made implementation
+  template/                       minimal skeleton workspace
+```
+
+Python-код может читать machine-readable части этих правил для safety checks, но правила разработки должны оставаться в kit-е. Не переносить предметную архитектурную логику в `prototype_pipeline/` и `tools/`.
+
+## Роль Python-кода
+
+Python pipeline отвечает за порядок действий и контроль исполнения:
+
+- подготовка workspace;
+- sync kit context;
+- запуск OpenCode phases;
+- проверка наличия и формата обязательных JSON outputs;
+- минимальные safety checks по путям и forbidden files;
+- сбор git diff и boundary check против утвержденного `file_plan.json`;
+- статические проверки результата кода, например `data-prototype-id`;
+- запуск `task validate`;
+- traceability, reports, diagnostics, usage logs.
+
+Python pipeline не должен:
+
+- придумывать имена feature-файлов, тестов или scheme elements;
+- исправлять `artifact_type`, выбранный моделью;
+- превращать `create` в `modify` по смыслу плана;
+- добавлять частные исключения под конкретный LLM output;
+- дублировать architecture kit в Python-условиях.
+
+Допустимая нормализация — техническая: canonical path separators, default для необязательных полей, совместимость старого/нового имени поля, сортировка/запись JSON. Содержательные решения остаются в модели и architecture rules.
 
 ## Используемые инструменты
 
-- **Python pipeline** — подготовка run-а, синхронизация kit-а, формальная проверка плана, boundary checks, UI static checks, validation, traceability, отчеты и экспорт.
+- **Python pipeline** — подготовка run-а, синхронизация kit-а, формальная проверка плана, boundary checks, UI static checks, запуск validation, traceability, отчеты и экспорт.
 - **OpenCode** — LLM code-agent для этапов `plan`, `plan-review`, `implementation`, `repair`.
-- **Taskfile** — команды внутри workspace: `install`, `test`, `build`, `validate`, `frontend-behavior`.
+- **Taskfile** — команды validation/runtime внутри workspace: `install`, `smoke`, `test`, `build`, `frontend-behavior`, `validate`.
 - **React + Python/FastAPI + JSON mock storage** — текущий prototype stack.
-- **Playwright** — browser/e2e validation в browser kit.
+- **Pytest** — backend/API/service validation.
+- **Vite build** — frontend build validation.
+- **Playwright** — browser/e2e validation.
+
+OpenCode может во время implementation/repair читать файлы и запускать отдельные диагностические команды, если это нужно для работы агента. Эти действия не являются официальным validation stage. Официальный результат validation определяется только pipeline-этапом `Run validation`, который запускает `tools/run_validation.py`. Для `validate` скрипт выполняет стадии validation последовательно (`install`, `smoke`, `test`, `build`, `frontend-behavior`) и собирает их в один `validation_result.json`, не останавливаясь на первом backend failure. При этом downstream failures помечаются зависимостями: если backend smoke/pytest или frontend build уже упали, browser/e2e failures являются диагностическим контекстом, а не обязательной первичной причиной repair.
+
+## OpenCode todo и отчётные артефакты
+
+OpenCode может вести внутренний todo-list или запускать вспомогательные команды, но это не является частью контракта pipeline. Контрактными результатами фаз являются JSON-файлы, которые явно требуются prompt-ами: `plan_proposal.json`, `validation_plan_proposal.json`, `plan_review.json`, `implementation_report.json`, `change_manifest.json`, `repair_report.json`.
+
+Если внутренний todo-tool OpenCode ошибся или недоступен, это не должно ломать pipeline при условии, что обязательные JSON-отчёты записаны и последующие проверки проходят.
+
+## Repair как safety net
+
+Repair — нормальная страховочная фаза, но частые однотипные repair-срабатывания нужно переводить в kit-level инструкции и reference examples. Сейчас типовые причины repair: согласование API route/prefix с тестами, изоляция JSON mock storage в pytest, Playwright selectors, стабильность e2e test data и соответствие тестовых ожиданий фактической семантике требования.
+
+Не надо закрывать эти случаи растущим набором Python-запретов. Python-checker должен оставаться на уровне контрактных инвариантов: границы файлов, forbidden paths, dependency boundary, обязательные отчёты, грубые UI anchor инварианты.
 
 ## Структура проекта
 
 ```text
-prototype-dev-spike/
+codegenerator2/
   architecture-profiles/
   prototype-kits/
   prototype_pipeline/
@@ -53,27 +140,24 @@ prototype-dev-spike/
 architecture-profiles/simple-crud-app/profile.yaml
 ```
 
-Профиль описывает общий тип приложения, например simple CRUD app. Сейчас profile используется как контекст, а исполняемые правила находятся в `prototype-kits/<kit>/architecture-contract.yaml`.
+Профиль описывает общий тип приложения, например simple CRUD app. Исполняемые правила текущего pipeline находятся в kit-е, прежде всего в `prototype-kits/react-python-json-browser/architecture-contract.yaml`.
 
 ### `prototype-kits/`
 
 Kit — шаблон приложения и набор правил для конкретного технологического стека.
 
-Текущие kit-ы:
+Текущий активный kit один:
 
 ```text
-prototype-kits/react-python-json/
 prototype-kits/react-python-json-browser/
 ```
 
-`react-python-json` — lightweight kit без browser/e2e validation. Он использует UI static checks, backend tests, smoke/build validation.
-
-`react-python-json-browser` — kit с включенным frontend behavior capability. Он добавляет Playwright и `task frontend-behavior`.
+Это React + Python + JSON kit с включенным browser/e2e validation через Playwright. Отдельный lightweight kit без browser/e2e validation сейчас не поддерживается, чтобы не держать две почти одинаковые версии правил и prompt-ов. Если позже понадобится режим без browser/e2e, его лучше добавлять как явный capability/profile внутри текущего подхода, а не копировать весь kit без необходимости.
 
 Типовая структура kit-а:
 
 ```text
-prototype-kits/<kit>/
+prototype-kits/react-python-json-browser/
   kit.yaml
   generation-rules.yaml
   architecture-contract.yaml
@@ -94,11 +178,13 @@ prototype-kits/<kit>/
 - `architecture-contract.yaml` — формальный контракт для planner-а и validation: artifact types, allowed roots, validation capabilities, file policies.
 - `Taskfile.yml` — команды validation/runtime внутри workspace.
 - `opencode.json` — настройки OpenCode для workspace.
-- `AGENTS.md` — общие инструкции агенту.
+- `AGENTS.md` — общие инструкции агенту внутри workspace.
 - `agents/` — инструкции для builder/reviewer/repair.
-- `instructions/` — правила архитектуры, planning, validation, forbidden changes, traceability.
+- `instructions/` — правила architecture, planning, validation, forbidden changes, traceability.
 - `prompts/` — prompt templates для phases `plan`, `plan-review`, `implementation`, `repair`.
 - `template/` — baseline workspace, из которого создается начальный прототип.
+
+В созданном workspace канонический prompt-facing путь для markdown-инструкций — `instructions/...`. Pipeline также может держать read-only compatibility mirror под `prototype/input/instructions/...`; это нужно только чтобы избежать шумных failed reads от агента и не является отдельным источником правил.
 
 ### `samples/`
 
@@ -112,12 +198,12 @@ samples/notes-app-slice-003-confirm-delete/
 samples/notes-app-slice-004-note-count/
 ```
 
-`notes-app` — начальное состояние прототипа. Slice samples описывают инкрементальные изменения.
+`notes-app` — greenfield baseline, с него начинается запуск после clone. Slice samples описывают инкрементальные изменения поверх successful baseline.
 
-Структура slice sample:
+Структура sample:
 
 ```text
-samples/notes-app-slice-004-note-count/
+samples/<sample>/
   run_input.json
   requirements.json
   implementation_slice.json
@@ -129,13 +215,40 @@ samples/notes-app-slice-004-note-count/
 Назначение файлов:
 
 - `run_input.json` — канонический вход: slice id, цель, requirements, acceptance criteria, selected existing elements, constraints.
-- `implementation_slice.json` — compatibility view, материализованный из canonical input для prompt-ов.
+- `implementation_slice.json` — compatibility view для prompt-ов.
 - `requirements.json` — требования, связанные со slice.
-- `scheme_model.json` — текущее принятое состояние прототипа до выполнения slice.
+- `scheme_model.json` — модель элементов прототипа до выполнения slice. Для greenfield baseline это целевая модель начального приложения.
 - `data_sources.json` — описание mock/data источников.
 - `mock_plan.json` — вспомогательный план mock data для kit-а.
 
-`run_input.json` не содержит file plan, имена будущих файлов или заранее заданные новые элементы. Это ответственность planner-а.
+`run_input.json` не содержит file plan, имена будущих файлов или заранее заданные новые элементы для инкрементальных slice. Это ответственность planner-а.
+
+### `runs/`
+
+`runs/` — runtime-директория запусков. В git хранится только `runs/.gitkeep`; сами `runs/run-*` не коммитятся.
+
+Структура run-а:
+
+```text
+runs/<run>/
+  input/
+  workspace/
+  output/
+  logs/
+  usage/
+  agent_reports/
+  dist/
+```
+
+Главные файлы результата:
+
+```text
+runs/<run>/output/scenario_result.json
+runs/<run>/output/run_report.md
+runs/<run>/output/run_summary.json
+runs/<run>/dist/prototype_artifact.zip
+runs/<run>/dist/run_diagnostics.zip
+```
 
 ### `prototype/` внутри workspace
 
@@ -147,7 +260,7 @@ runs/<run>/workspace/prototype/
   output/
 ```
 
-`prototype/input/` — файлы, которые читает агент:
+`prototype/input/` — файлы, которые читает агент и pipeline:
 
 ```text
 run_input.json
@@ -161,6 +274,7 @@ generation-rules.yaml
 architecture-contract.yaml
 file_plan.json
 validation_plan.json
+instructions/          optional read-only compatibility mirror of kit markdown instructions
 ```
 
 `file_plan.json` и `validation_plan.json` появляются после успешного `Validate plan`.
@@ -183,11 +297,11 @@ scenario_result.json
 
 ### `prototype_pipeline/`
 
-Python package с orchestration-кодом pipeline.
+Python package основного pipeline.
 
 ```text
 prototype_pipeline/
-  cli/
+  cli/run_pipeline.py
   phases/
   plan_validation/
   reports/
@@ -199,8 +313,8 @@ prototype_pipeline/
 Назначение:
 
 - `cli/run_pipeline.py` — основной pipeline CLI.
-- `phases/` — небольшие wrappers для clean, sync inputs, OpenCode, reports, status.
-- `plan_validation/` — формальная проверка `plan_proposal.json` и `validation_plan_proposal.json`.
+- `phases/` — wrappers для clean, sync inputs, OpenCode, reports, status.
+- `plan_validation/` — проверка формата и machine-readable safety boundary для `plan_proposal.json` и `validation_plan_proposal.json`; не исправляет архитектурный смысл плана.
 - `reports/` — генерация `run_report.md` и `scenario_result.json`.
 - `events.py` — event logging в `pipeline_events.jsonl`.
 - `paths.py` — стандартные пути run/workspace/input/output.
@@ -208,288 +322,139 @@ prototype_pipeline/
 
 ### `tools/`
 
-CLI-скрипты и тонкие entrypoints к pipeline.
+CLI-скрипты и entrypoints к pipeline.
 
 Основные актуальные tools:
 
-- `prepare_run_from_scenario.py` — готовит run из `run_input.json`.
-- `prepare_workspace.py` — создает workspace из kit template.
-- `prepare_incremental_run.py` — создает workspace от предыдущего successful run-а.
-- `run_pipeline.py` — запускает полный pipeline.
-- `validate_plan.py` — запускает formal plan validation.
-- `collect_changes.py` — сравнивает git diff с `file_plan.json`.
-- `run_ui_static_checks.py` — проверяет `data-prototype-id` anchors.
-- `run_validation.py` — запускает `task validate` внутри workspace.
-- `build_code_traceability.py` — строит связь requirement → files → validation.
-- `collect_agent_reports.py` — собирает agent reports из workspace.
-- `export_artifact.py` — собирает `prototype_artifact.zip`.
-- `export_run_bundle.py` — собирает `run_diagnostics.zip`.
-- `clean_run_artifacts.py` — чистит stale outputs/logs/runtime artifacts.
-- `sync_run_inputs.py` — синхронизирует kit/input artifacts в run/workspace.
-- `usage_metrics.py` — собирает OpenCode usage delta.
+- `prepare_run_from_scenario.py` — основной способ подготовки run-а из `run_input.json`.
+- `prepare_workspace.py` — низкоуровневое создание workspace из kit template; для обычного запуска использовать `prepare_run_from_scenario.py`.
+- `prepare_incremental_run.py` — низкоуровневая подготовка workspace от предыдущего run-а; вызывается через `prepare_run_from_scenario.py --from-run ...`.
+- `run_pipeline.py` — полный pipeline.
+- `validate_plan.py` — formal plan validation.
+- `collect_changes.py` — сравнение git diff с `file_plan.json`.
+- `run_ui_static_checks.py` — проверка `data-prototype-id` anchors.
+- `run_validation.py` — thin CLI wrapper for staged validation. The implementation is split into `tools/validation_runner/` modules for stage execution, reporting, and workspace restore.
+- `build_code_traceability.py` — traceability requirements → files → checks.
+- `export_artifact.py` / `export_run_diagnostics.py` — архивы результата.
 
-### `runs/`
+## Pipeline: этапы, входы, выходы и исполнитель
 
-`runs/` — рабочая область запусков. Исторические runs не хранятся в исходном дереве; директория содержит только `.gitkeep` до создания новых runs. `runs/*` исключены из git через корневой `.gitignore`.
+| Этап | Исполнитель | Основные входы | Основные выходы |
+|---|---|---|---|
+| Prepare run | Python | `samples/<sample>/run_input.json`, kit template, optional `--from-run` | `runs/<run>/workspace`, `runs/<run>/input` |
+| Clean/sync | Python | kit metadata, prompt templates | synced `prototype/input/*`, prompt snapshots |
+| Plan | OpenCode | `prototype/input/run_input.json`, `requirements.json`, `scheme_model.json`, kit contract | `plan_proposal.json`, `validation_plan_proposal.json` |
+| Validate plan | Python | plan proposal, validation proposal, `architecture-contract.yaml` | format/safety result, `file_plan.json`, `validation_plan.json`, `plan_validation_result.json` |
+| Plan review | OpenCode | proposals, approved input context, kit contract | `plan_review.json` |
+| Implementation | OpenCode | `file_plan.json`, `validation_plan.json`, requirements/context | implementation files, tests, `implementation_report.json`, `change_manifest.json` |
+| Collect changes | Python | git diff, `file_plan.json` | `changed_files.json` |
+| UI static checks | Python | `changed_files.json`, `file_plan.json`, frontend files | `ui_static_check_result.json` |
+| Validation | Python + Taskfile + pytest/npm/Playwright | workspace, `Taskfile.yml`, generated tests | `validation_result.json`, validation logs |
+| Repair | OpenCode | validation/boundary/UI static failures, file plan | repaired files, `repair_report.json` |
+| Traceability | Python | requirements, changed files, validation result | `code_traceability.json` |
+| Reports/export | Python | all outputs | `scenario_result.json`, `run_report.md`, archives |
 
-Структура run-а:
+## Validation stage подробнее
 
-```text
-runs/<run>/
-  input/
-  output/
-  logs/
-  usage/
-  agent_reports/
-  dist/
-  workspace/
-```
-
-Назначение:
-
-- `workspace/` — копия прототипа и kit runtime, с git baseline для diff checks.
-- `input/` — canonical и materialized input текущего run-а.
-- `output/` — результаты pipeline.
-- `logs/` — stdout/stderr OpenCode phases и validation.
-- `usage/` — OpenCode usage deltas.
-- `agent_reports/` — собранные отчеты агента.
-- `dist/` — `prototype_artifact.zip` и `run_diagnostics.zip`.
-
-
-### `AGENTS.md`
-
-`AGENTS.md` — краткий технический контекст для передачи другому агенту или новому чату. Он фиксирует назначение проекта, текущий стабильный pipeline, основные директории, правила доработки и команды проверки. Это не пользовательская документация и не version history; файл предназначен для быстрого ввода разработчика/агента в контекст проекта.
-
-### `.gitignore`
-
-Корневой `.gitignore` исключает runtime и локальные артефакты:
+Validation stage не выполняется OpenCode. Он реализован в нашем Python-коде:
 
 ```text
-runs/*, кроме runs/.gitkeep
-prototype/input/ и prototype/output/ в корне проекта
-*.zip
-__pycache__/ и *.pyc
-.venv/ и другие virtualenv directories
-node_modules/
-dist/ и build/
-playwright-report/ и test-results/
-.env и локальные настройки
+tools/run_validation.py
+→ cd runs/<run>/workspace
+→ task validate
 ```
 
-В git должны попадать исходники pipeline, kit-ы, samples, README и AGENTS.md. Runtime runs, diagnostics, usage, logs и workspace outputs не коммитятся.
-
-## Pipeline по шагам
-
-### 1. Prepare run
-
-**Инструмент:** наш Python-код: `tools/prepare_run_from_scenario.py`, `prepare_workspace.py` или `prepare_incremental_run.py`.
-
-**Вход:**
+В текущем kit-е `task validate` выполняет:
 
 ```text
-samples/<slice>/run_input.json
-samples/<slice>/requirements.json
-samples/<slice>/scheme_model.json
-samples/<slice>/data_sources.json
-samples/<slice>/mock_plan.json
-prototype-kits/<kit>/template
-или previous run workspace через --from-run
+task install
+→ task smoke
+→ task test
+→ task build
+→ task frontend-behavior
 ```
 
-**Выход:**
+Состав проверок:
 
-```text
-runs/<run>/workspace/
-runs/<run>/input/run_input.json
-runs/<run>/input/implementation_slice.json
-runs/<run>/input/architecture-contract.yaml
-```
+- `task install` — создает `.venv`, ставит backend requirements, выполняет `npm install`, ставит Playwright browser.
+- `task smoke` — запускает backend smoke check.
+- `task test` — запускает backend pytest.
+- `task build` — запускает frontend build.
+- `task frontend-behavior` — запускает Playwright browser/e2e tests.
 
-Этап создает workspace, копирует kit runtime, материализует compatibility inputs, инициализирует git baseline.
+Pipeline дополнительно выполняет `ui_static` до `task validate`. `ui_static` — это не e2e-тест, а статическая проверка, что созданные/измененные UI-файлы содержат нужные `data-prototype-id` anchors для scheme elements, напрямую назначенных этому файлу в `file_plan.json`. Screen-файл должен нести свой `screen.*` anchor и anchors для action-контролов, которые он реально рендерит; widget-файл не обязан нести чужие action anchors, если его file-plan item содержит только `widget.*`.
 
-### 2. Sync prompts and kit inputs
+## Запуск с нуля после clone/переноса проекта
 
-**Инструмент:** наш Python-код в `prototype_pipeline/phases/prompt_sync.py` и `tools/sync_run_inputs.py`.
+Нормальный запуск начинается с greenfield baseline `SLICE-001`, затем выполняются инкрементальные slice.
 
-**Вход:** kit metadata и prompt templates.
-
-**Выход:** run prompt snapshots и актуальные `kit.yaml`, `generation-rules.yaml`, `architecture-contract.yaml` в run/workspace.
-
-При `--sync-prompts` pipeline копирует prompt templates из kit-а в run, если эти prompt-файлы не являются внешними override-файлами.
-
-### 3. OpenCode plan
-
-**Инструмент:** OpenCode.
-
-**Вход:** `prototype/input/run_input.json`, `scheme_model.json`, `requirements.json`, `architecture-contract.yaml`, kit rules и текущий код workspace.
-
-**Выход:**
-
-```text
-prototype/output/plan_proposal.json
-prototype/output/validation_plan_proposal.json
-```
-
-Planner определяет `design_delta`, существующие и новые элементы, решения preserve/reuse/modify, draft file plan и validation checks.
-
-### 4. Validate plan
-
-**Инструмент:** наш Python-код: `tools/validate_plan.py` и `prototype_pipeline/plan_validation/`.
-
-**Вход:**
-
-```text
-plan_proposal.json
-validation_plan_proposal.json
-architecture-contract.yaml
-scheme_model.json
-run_input.json
-```
-
-**Выход:**
-
-```text
-runs/<run>/input/file_plan.json
-runs/<run>/input/validation_plan.json
-runs/<run>/output/plan_validation_result.json
-```
-
-Этап проверяет схему плана, допустимые operations, artifact types, allowed roots, validation capabilities, dependency/file boundary. После успешной проверки утвержденные `file_plan.json` и `validation_plan.json` коммитятся в git baseline workspace.
-
-### 5. OpenCode plan-review
-
-**Инструмент:** OpenCode.
-
-**Вход:** plan proposals, run inputs, architecture contract.
-
-**Выход:**
-
-```text
-prototype/output/plan_review.json
-```
-
-Review проверяет архитектурную безопасность плана: не происходит ли repurpose существующего поведения, не расширен ли scope, достаточно ли validation coverage, не нарушены ли contract rules.
-
-### 6. OpenCode implementation
-
-**Инструмент:** OpenCode.
-
-**Вход:** утвержденные `file_plan.json`, `validation_plan.json`, run inputs и код workspace.
-
-**Выход:** измененные файлы прототипа и отчеты:
-
-```text
-prototype/output/implementation_report.json
-prototype/output/change_manifest.json
-```
-
-Implementation может создавать/изменять только файлы, разрешенные в `file_plan.json`.
-
-### 7. Collect changes / boundary
-
-**Инструмент:** наш Python-код: `tools/collect_changes.py`.
-
-**Вход:** git diff workspace и `runs/<run>/input/file_plan.json`.
-
-**Выход:**
-
-```text
-runs/<run>/output/changed_files.json
-runs/<run>/output/workspace.diff
-```
-
-Этап классифицирует created/modified/deleted files, проверяет unexpected files, read-only violations, missing required changes и runtime/non-semantic artifacts.
-
-### 8. UI static checks
-
-**Инструмент:** наш Python-код: `tools/run_ui_static_checks.py`.
-
-**Вход:** `file_plan.json`, `validation_plan.json`, scheme elements и измененные frontend files.
-
-**Выход:**
-
-```text
-runs/<run>/output/ui_static_check_result.json
-```
-
-Этап проверяет `data-prototype-id` anchors для screen/widget/action элементов, связанных с измененными frontend artifacts. Это не browser-тест и не OpenCode phase; это формальная проверка связки scheme → UI anchors.
-
-### 9. Validation
-
-**Инструмент:** наш Python-код: `tools/run_validation.py`, который запускает `task validate` внутри workspace. Сами проверки выполняются инструментами kit-а: pytest, Vite/build, Playwright и shell commands из `Taskfile.yml`.
-
-**Вход:** workspace, `Taskfile.yml`, `validation_plan.json` и фактически сгенерированный код.
-
-**Выход:**
-
-```text
-runs/<run>/output/validation_result.json
-runs/<run>/logs/validation.stdout.log
-runs/<run>/logs/validation.stderr.log
-```
-
-В browser kit `task validate` включает:
-
-```text
-install
-smoke
-backend tests / pytest
-frontend build
-frontend-behavior / Playwright
-```
-
-`run_validation.py` фиксирует status, exit code, duration, stdout/stderr logs. Если Playwright не может стартовать из-за системных зависимостей, результат классифицируется как `environment_failed` с диагностикой environment issue.
-
-### 10. Repair
-
-**Инструмент:** OpenCode, запускается только при `--allow-repair` и только если есть failure, который можно исправлять кодом.
-
-**Вход:** validation/boundary/ui_static results, file plan, текущие изменения workspace.
-
-**Выход:**
-
-```text
-prototype/output/repair_report.json
-```
-
-После repair pipeline повторяет boundary, UI static и validation checks.
-
-### 11. Traceability
-
-**Инструмент:** наш Python-код: `tools/build_code_traceability.py`.
-
-**Вход:** `file_plan.json`, `validation_plan.json`, `changed_files.json`, `validation_result.json`, `ui_static_check_result.json`, `run_input.json`.
-
-**Выход:**
-
-```text
-runs/<run>/output/code_traceability.json
-```
-
-Этап строит связь requirements с измененными файлами и validation checks. Primary requirements должны получить статус `implemented_and_validated`. Preserved behavior, проверенное regression checks, получает `validated_unchanged`.
-
-### 12. Reports and export
-
-**Инструмент:** наш Python-код: `prototype_pipeline/summary.py`, `prototype_pipeline/reports/*`, `tools/export_artifact.py`, `tools/export_run_bundle.py`.
-
-**Выход:**
-
-```text
-runs/<run>/output/run_summary.json
-runs/<run>/output/scenario_result.json
-runs/<run>/output/run_report.md
-runs/<run>/dist/prototype_artifact.zip
-runs/<run>/dist/run_diagnostics.zip
-```
-
-`run_summary.json` рассчитывает final status. `scenario_result.json` является главным отчетным контрактом для UI.
-
-## Запуск
-
-### Browser/e2e run
+### 1. Baseline: SLICE-001 basic notes app
 
 ```bash
-cd ~/opencode/prototype-dev-spike
+cd ~/opencode/codegenerator2
+
+rm -rf runs/run-001-notes-app-browser
+
+python3 tools/prepare_run_from_scenario.py \
+  --scenario samples/notes-app/run_input.json \
+  --run runs/run-001-notes-app-browser \
+  --kit prototype-kits/react-python-json-browser
+
+python3 tools/run_pipeline.py \
+  --run runs/run-001-notes-app-browser \
+  --kit prototype-kits/react-python-json-browser \
+  --sync-prompts \
+  --clean \
+  --clean-root-prototype-output \
+  --strict-ui-checks \
+  --model ollama-cloud/qwen3.5:397b \
+  --plan-prompt-file runs/run-001-notes-app-browser/opencode_plan_prompt.txt \
+  --review-prompt-file runs/run-001-notes-app-browser/opencode_plan_review_prompt.txt \
+  --implementation-prompt-file runs/run-001-notes-app-browser/opencode_implementation_prompt.txt \
+  --allow-repair \
+  --repair-prompt-file runs/run-001-notes-app-browser/opencode_repair_prompt.txt
+```
+
+Successful baseline должен закончиться:
+
+```text
+Pipeline final status: passed
+```
+
+### 2. Incremental: SLICE-003 confirm delete
+
+```bash
+cd ~/opencode/codegenerator2
+
+rm -rf runs/run-003-confirm-delete-browser
+
+python3 tools/prepare_run_from_scenario.py \
+  --from-run runs/run-001-notes-app-browser \
+  --scenario samples/notes-app-slice-003-confirm-delete/run_input.json \
+  --run runs/run-003-confirm-delete-browser \
+  --kit prototype-kits/react-python-json-browser
+
+python3 tools/run_pipeline.py \
+  --run runs/run-003-confirm-delete-browser \
+  --kit prototype-kits/react-python-json-browser \
+  --sync-prompts \
+  --clean \
+  --clean-root-prototype-output \
+  --strict-ui-checks \
+  --model ollama-cloud/qwen3.5:397b \
+  --plan-prompt-file runs/run-003-confirm-delete-browser/opencode_plan_prompt.txt \
+  --review-prompt-file runs/run-003-confirm-delete-browser/opencode_plan_review_prompt.txt \
+  --implementation-prompt-file runs/run-003-confirm-delete-browser/opencode_implementation_prompt.txt \
+  --allow-repair \
+  --repair-prompt-file runs/run-003-confirm-delete-browser/opencode_repair_prompt.txt
+```
+
+### 3. Incremental: SLICE-004 note count summary
+
+```bash
+cd ~/opencode/codegenerator2
+
+rm -rf runs/run-004-note-count-browser
 
 python3 tools/prepare_run_from_scenario.py \
   --from-run runs/run-003-confirm-delete-browser \
@@ -512,132 +477,118 @@ python3 tools/run_pipeline.py \
   --repair-prompt-file runs/run-004-note-count-browser/opencode_repair_prompt.txt
 ```
 
-### Lightweight run
+## Параметры `run_pipeline.py`
 
-```bash
-cd ~/opencode/prototype-dev-spike
-
-python3 tools/prepare_run_from_scenario.py \
-  --scenario samples/notes-app-slice-003-confirm-delete/run_input.json \
-  --run runs/run-003-confirm-delete \
-  --kit prototype-kits/react-python-json
-
-python3 tools/run_pipeline.py \
-  --run runs/run-003-confirm-delete \
-  --kit prototype-kits/react-python-json \
-  --sync-prompts \
-  --clean \
-  --clean-root-prototype-output \
-  --strict-ui-checks \
-  --model ollama-cloud/qwen3.5:397b \
-  --plan-prompt-file runs/run-003-confirm-delete/opencode_plan_prompt.txt \
-  --review-prompt-file runs/run-003-confirm-delete/opencode_plan_review_prompt.txt \
-  --implementation-prompt-file runs/run-003-confirm-delete/opencode_implementation_prompt.txt \
-  --allow-repair \
-  --repair-prompt-file runs/run-003-confirm-delete/opencode_repair_prompt.txt
-```
-
-### Основные параметры `run_pipeline.py`
+Основные параметры:
 
 - `--run` — директория run-а.
-- `--kit` — kit для sync metadata и prompts.
-- `--sync-prompts` — синхронизировать prompt snapshots из kit-а.
-- `--clean` — очистить output/logs/usage/agent_reports/dist и откатить workspace к baseline.
-- `--clean-root-prototype-output` — очистить stale `prototype/output` в workspace.
-- `--strict-ui-checks` — считать UI static blockers причиной failure.
+- `--kit` — kit, который используется для sync и validation context.
+- `--sync-prompts` — обновить prompt snapshots из kit-а перед запуском.
+- `--clean` — очистить run outputs/logs/usage/dist перед запуском.
+- `--clean-root-prototype-output` — очистить случайный root `prototype/output` вне workspace.
+- `--strict-ui-checks` — считать UI static blockers причиной repair/failure.
 - `--model` — модель OpenCode.
-- `--plan-prompt-file` — prompt для planning phase.
-- `--review-prompt-file` — prompt для plan-review phase.
-- `--implementation-prompt-file` — prompt для implementation phase.
-- `--allow-repair` — разрешить repair phase.
-- `--repair-prompt-file` — prompt для repair phase.
+- `--plan-prompt-file`, `--review-prompt-file`, `--implementation-prompt-file`, `--repair-prompt-file` — snapshots prompt-ов в run-директории.
+- `--allow-repair` — разрешить repair phase при repairable failure.
 
 ## Browser/e2e setup
 
-Для `react-python-json-browser` нужны browser dependencies Playwright.
+Для Playwright иногда нужны системные зависимости. Если validation падает из-за отсутствующих browser dependencies, выполнить:
 
 ```bash
 cd runs/<run>/workspace
-
 task frontend-behavior-setup
 ```
 
-Или напрямую:
-
-```bash
-cd runs/<run>/workspace/frontend
-npx playwright install --with-deps chromium
-```
+Команда может потребовать системные пакеты/`sudo`, потому она не выполняется автоматически как отдельный preflight. Обычный `task validate` устанавливает Python/npm/Playwright browser dependencies в пределах workspace.
 
 ## Итоговый отчет `scenario_result.json`
 
-Главный результат run-а:
+Главный отчетный файл:
 
 ```text
 runs/<run>/output/scenario_result.json
 ```
 
-Верхний уровень:
+Он содержит:
 
-```json
-{
-  "scenario_result_version": 1,
-  "run": "runs/run-004-note-count-browser",
-  "slice": {
-    "slice_id": "SLICE-004",
-    "title": "Show visible and total note count",
-    "requirement_ids": ["REQ-007"]
-  },
-  "final_status": "passed",
-  "stage_status": {
-    "plan": "passed",
-    "plan_review": "passed",
-    "implementation": "passed",
-    "repair": "not_run",
-    "plan_validation": "passed",
-    "boundary": "passed",
-    "ui_static": "passed",
-    "validation": "passed",
-    "traceability": "passed",
-    "final": "passed"
-  }
-}
-```
+- `slice` — id, title, goal, requirements, acceptance criteria.
+- `final_status` — итог `passed/failed`.
+- `stage_status` — статусы этапов pipeline.
+- `changed_files` — созданные, измененные, unexpected, policy violations, runtime artifacts.
+- `validation` — статус `task validate`, UI static result, список checks.
+- `traceability` — связь requirements → files → validation checks.
+- `repair` — был ли repair и какие repair phases выполнялись.
+- `artifacts` — ссылки на artifact zip, diagnostics zip, report, summary.
+- `usage` — LLM/tool usage по фазам.
+- `inputs` — какие input-файлы использовались.
 
-Основные поля для UI/отчета:
+## Что коммитить в git
+
+Коммитить:
 
 ```text
-final_status
-slice
-stage_status
-changed_files.created_files
-changed_files.modified_files
-changed_files.read_only_unchanged_files
-validation.status
-validation.ui_static.status
-validation.checks
-traceability.status
-traceability.primary_requirements
-traceability.supporting_regressions
-traceability.gaps
-repair.used
-artifacts.prototype_artifact
-artifacts.diagnostics_archive
-usage.totals
+README.md
+AGENTS.md
+.gitignore
+architecture-profiles/
+prototype-kits/
+prototype_pipeline/
+samples/
+tools/
+runs/.gitkeep
 ```
 
-## Критерии успешного run-а
+Не коммитить:
 
-Run успешен, если:
+```text
+runs/run-*/
+prototype/input/
+prototype/output/
+*.zip
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+dist/
+build/
+playwright-report/
+test-results/
+.env
+```
 
-- `plan` завершился успешно;
-- formal plan validation создал допустимые `file_plan.json` и `validation_plan.json`;
-- `plan-review` не нашел blockers;
-- `implementation` завершился успешно;
-- фактические изменения соответствуют `file_plan.json`;
-- `ui_static` не содержит blockers;
-- `task validate` прошел;
-- traceability для primary requirements не содержит gaps;
-- artifact и diagnostics экспортированы.
+## Проверка после изменений проекта
 
-Успешные тесты сами по себе не гарантируют успешный run. Final status также учитывает boundary, UI static и traceability.
+```bash
+python3 -m py_compile \
+  tools/*.py \
+  prototype_pipeline/*.py \
+  prototype_pipeline/cli/*.py \
+  prototype_pipeline/phases/*.py \
+  prototype_pipeline/reports/*.py \
+  prototype_pipeline/plan_validation/*.py
+
+python3 tools/run_pipeline.py --help
+python3 tools/validate_plan.py --help
+```
+
+## Текущий следующий шаг
+
+После успешного ручного sequence `SLICE-001 → SLICE-003 → SLICE-004` следующий функциональный шаг — accepted baseline / promotion flow:
+
+```text
+successful run → accepted current prototype state → next slice uses it automatically
+```
+
+Это позволит не передавать каждый раз `--from-run` вручную и приблизит workflow к будущему requirements/UI layer.
+
+### Agent self-checks
+
+OpenCode may run small diagnostic commands while implementing or repairing a slice, but those commands are not the canonical validation contract. The canonical checks are the pipeline phases: file boundary, UI static checks, and `tools/run_validation.py` after implementation/repair. Frontend diagnostics should use the kit runner (`npm run build`, `npm run test:e2e`) rather than raw `node --check` on JSX or Playwright ESM files. Browser/e2e tests should verify behavior through the UI or public API, not by reading private backend storage files.
+
+
+### OpenCode self-check limits
+
+Full validation is owned by the pipeline. `tools/run_validation.py` records per-stage results for install, smoke, backend pytest, frontend build, and browser/e2e, and restores semantic workspace files between stages so tests do not leak JSON mock-storage mutations into later checks. OpenCode phases may use focused diagnostics, but they should not call `tools/run_validation.py` or run broad install/build/e2e loops from inside implementation or repair. This keeps repair shorter and prevents duplicate validation from being interpreted as a separate source of truth. When using shell/bash diagnostics, omit tool-level timeout unless necessary; if used, it must be an integer, not a float/string like `30000.0`.
+
+Backend tests for JSON-backed prototypes should isolate storage via injection, route-module dependency replacement, dependency overrides, or small app/service factories. They should not rewrite implementation source files from pytest fixtures.

@@ -122,8 +122,8 @@ def _normalized_file_plan(
         "allowed_files": normalized,
         "forbidden_policy": "deny_all_not_listed",
         "notes": [
-            "File names and targets come from agent-generated plan and validation plan proposals.",
-            "This validator checks formal architecture-contract boundaries and metadata; it does not infer feature semantics.",
+            "File names, targets, artifact types, and file operations come from agent-generated plan and validation plan proposals.",
+            "This validator checks format and machine-readable safety boundaries from the architecture contract; it does not repair or reinterpret the plan's architectural meaning.",
             "Validation test file names are copied from validation_plan_proposal.json; they are not generated statically.",
         ],
     }

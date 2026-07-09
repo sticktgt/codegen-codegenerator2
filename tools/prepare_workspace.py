@@ -49,6 +49,17 @@ def main() -> None:
                 shutil.rmtree(dst)
             shutil.copytree(src, dst)
 
+    # Keep a compatibility mirror for markdown instructions under
+    # prototype/input. The prompt-facing canonical path is still
+    # workspace-root instructions/; this mirror prevents noisy failed reads
+    # from models that probe prototype/input/instructions.
+    instructions_src = args.kit / "instructions"
+    if instructions_src.exists():
+        instructions_input_dst = workspace / "prototype" / "input" / "instructions"
+        if instructions_input_dst.exists():
+            shutil.rmtree(instructions_input_dst)
+        shutil.copytree(instructions_src, instructions_input_dst)
+
     shutil.copy2(args.kit / "generation-rules.yaml", workspace / "prototype" / "input" / "generation-rules.yaml")
     shutil.copy2(args.kit / "kit.yaml", workspace / "prototype" / "input" / "kit.yaml")
     contract = args.kit / "architecture-contract.yaml"

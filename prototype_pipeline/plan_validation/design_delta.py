@@ -130,7 +130,7 @@ def _validate_existing_new_classification(
         warnings.append({
             "code": "design_delta_proposed_new_already_exists",
             "scheme_element_ids": proposed_already_existing,
-            "message": "proposed_new_elements should contain only ids not already present in scheme_model.json.",
+            "message": "proposed_new_elements should contain only ids not present in scheme_model.json.",
         })
 
     for item in as_list(design.get("resolved_existing_elements")):
@@ -141,7 +141,7 @@ def _validate_existing_new_classification(
             warnings.append({
                 "code": "design_delta_resolved_existing_not_in_current_scheme",
                 "scheme_element_id": element_id,
-                "message": "resolved_existing_elements should reference ids already present in scheme_model.json or selected_existing_elements.",
+                "message": "resolved_existing_elements should reference ids present in scheme_model.json or selected_existing_elements.",
             })
         if item.get("source") == "selected_by_user" and element_id not in selected_existing:
             warnings.append({
@@ -220,6 +220,8 @@ def _validate_preservation_decisions(
     blockers: list[dict[str, Any]],
     warnings: list[dict[str, Any]],
 ) -> None:
+    if slice_change_type == "create_new":
+        return
     if not (preserve_default or slice_change_type == "extend_existing_behavior"):
         return
     decision_elements = {str(item.get("existing_element_id")) for item in decisions if item.get("existing_element_id")}

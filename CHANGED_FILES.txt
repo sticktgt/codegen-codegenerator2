@@ -1,0 +1,16 @@
+Changed files:
+codegenerator2/AGENTS.md
+codegenerator2/README.md
+codegenerator2/prototype-kits/react-python-json-browser/instructions/pipeline-output.md
+codegenerator2/prototype-kits/react-python-json-browser/prompts/implementation_prompt.md
+codegenerator2/prototype-kits/react-python-json-browser/prompts/repair_prompt.md
+codegenerator2/tools/run_validation.py
+
+New files:
+codegenerator2/tools/validation_runner/__init__.py
+codegenerator2/tools/validation_runner/reporting.py
+codegenerator2/tools/validation_runner/stages.py
+codegenerator2/tools/validation_runner/workspace.py
+
+Deleted files:
+(none)

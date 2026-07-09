@@ -54,6 +54,30 @@ def log_final_status_details(logger: PipelineLogger, summary: dict[str, object])
             f"warnings={len(ui_static.get('warnings') or [])}"
         )
 
+
+def fail_if_missing_workspace_or_run_input(run: Path, logger: PipelineLogger | None = None) -> None:
+    workspace = run / "workspace"
+    if not workspace.exists():
+        message = (
+            f"Run workspace does not exist: {workspace}. "
+            "Prepare the run first, preferably with tools/prepare_run_from_scenario.py."
+        )
+        if logger:
+            logger.log(message)
+        raise SystemExit(message)
+
+    run_input = workspace / "prototype" / "input" / "run_input.json"
+    if not run_input.exists():
+        message = (
+            f"Canonical run input is missing: {run_input}. "
+            "Use tools/prepare_run_from_scenario.py with a sample run_input.json, "
+            "or add run_input.json to the sample before using tools/prepare_workspace.py."
+        )
+        if logger:
+            logger.log(message)
+        raise SystemExit(message)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run", required=True, type=Path)
@@ -86,12 +110,14 @@ def main() -> None:
             keep_plan_inputs=args.keep_plan_inputs,
         )
 
+    logger = PipelineLogger(args.run)
+    fail_if_missing_workspace_or_run_input(args.run, logger)
+
     # Existing runs can predate newer kit-level inputs such as architecture-contract.yaml.
     # Synchronize them before OpenCode sees the workspace so prompts, validators, and
     # reports use the same contract. This is metadata sync, not feature/file generation.
     sync_run_inputs(root=root, py=py, run=args.run, kit=args.kit)
-
-    logger = PipelineLogger(args.run)
+    fail_if_missing_workspace_or_run_input(args.run, logger)
     prompt_sync_result = sync_prompt_snapshots(
         root=root,
         run=args.run,

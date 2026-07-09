@@ -37,18 +37,26 @@ def commit_workspace_files(run: Path, logger: PipelineLogger, rel_paths: list[st
         subprocess.run(["git", "commit", "-m", message], cwd=workspace)
 
 
+def _synced_instruction_paths(workspace: Path) -> list[str]:
+    instructions = workspace / "prototype" / "input" / "instructions"
+    if not instructions.exists():
+        return []
+    return [str(path.relative_to(workspace)) for path in sorted(instructions.rglob("*")) if path.is_file()]
+
+
 def commit_synced_kit_inputs(run: Path, logger: PipelineLogger) -> None:
     """Make kit-level input sync part of the clean baseline.
 
     Existing runs can be older than the current kit and receive files such as
-    architecture-contract.yaml via sync_run_inputs.py. If those files remain
-    untracked, collect_changes treats them as implementation drift and repair
-    may even delete them.
+    architecture-contract.yaml or the instruction compatibility mirror via
+    sync_run_inputs.py. If those files remain untracked, collect_changes treats
+    them as implementation drift and repair may even delete them.
     """
+    workspace = run / "workspace"
     commit_workspace_files(
         run=run,
         logger=logger,
-        rel_paths=SYNCED_KIT_INPUTS,
+        rel_paths=SYNCED_KIT_INPUTS + _synced_instruction_paths(workspace),
         message="synced kit input artifacts",
         log_message="Committing synced kit input artifacts to the workspace baseline",
     )

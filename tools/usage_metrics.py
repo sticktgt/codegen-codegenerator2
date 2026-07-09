@@ -127,34 +127,56 @@ def _delta_number(before: dict[str, Any], after: dict[str, Any], key: str) -> fl
     return _num(after.get(key)) - _num(before.get(key))
 
 
-def _model_delta(before_models: dict[str, Any], after_models: dict[str, Any]) -> dict[str, Any]:
+def _clamp_nonnegative(value: float | int, issues: list[dict[str, Any]], *, path: str) -> float | int:
+    if value < 0:
+        issues.append({"path": path, "raw_value": value, "normalized_value": 0})
+        return 0
+    return value
+
+
+def _metric_quality(issues: list[dict[str, Any]]) -> dict[str, Any]:
+    if not issues:
+        return {"status": "ok", "issues": []}
+    return {
+        "status": "unreliable",
+        "issues": issues,
+        "message": (
+            "OpenCode stats before/after returned negative deltas. "
+            "This can happen when the human-oriented stats window is reset, compacted, or affected by other sessions. "
+            "Negative counters were normalized to 0 for reports; treat usage as approximate."
+        ),
+    }
+
+
+def _model_delta(before_models: dict[str, Any], after_models: dict[str, Any], issues: list[dict[str, Any]]) -> dict[str, Any]:
     models: dict[str, Any] = {}
     for model in sorted(set(before_models) | set(after_models)):
         before = before_models.get(model, {}) or {}
         after = after_models.get(model, {}) or {}
         item = {
-            "messages": _delta_number(before, after, "messages"),
-            "input_tokens": _delta_number(before, after, "input_tokens"),
-            "output_tokens": _delta_number(before, after, "output_tokens"),
-            "cache_read": _delta_number(before, after, "cache_read"),
-            "cache_write": _delta_number(before, after, "cache_write"),
-            "cost": _delta_number(before, after, "cost"),
+            "messages": _clamp_nonnegative(_delta_number(before, after, "messages"), issues, path=f"model_usage.{model}.messages"),
+            "input_tokens": _clamp_nonnegative(_delta_number(before, after, "input_tokens"), issues, path=f"model_usage.{model}.input_tokens"),
+            "output_tokens": _clamp_nonnegative(_delta_number(before, after, "output_tokens"), issues, path=f"model_usage.{model}.output_tokens"),
+            "cache_read": _clamp_nonnegative(_delta_number(before, after, "cache_read"), issues, path=f"model_usage.{model}.cache_read"),
+            "cache_write": _clamp_nonnegative(_delta_number(before, after, "cache_write"), issues, path=f"model_usage.{model}.cache_write"),
+            "cost": _clamp_nonnegative(_delta_number(before, after, "cost"), issues, path=f"model_usage.{model}.cost"),
         }
         item["total_tokens"] = item["input_tokens"] + item["output_tokens"]
         models[model] = item
     return models
 
 
-def _tools_delta(before_tools: dict[str, Any], after_tools: dict[str, Any]) -> dict[str, int]:
+def _tools_delta(before_tools: dict[str, Any], after_tools: dict[str, Any], issues: list[dict[str, Any]]) -> dict[str, int]:
     return {
-        tool: int(_delta_number(before_tools, after_tools, tool))
+        tool: int(_clamp_nonnegative(_delta_number(before_tools, after_tools, tool), issues, path=f"tool_usage.{tool}"))
         for tool in sorted(set(before_tools) | set(after_tools))
     }
 
 
 def compute_usage_delta(before: dict[str, Any], after: dict[str, Any], *, phase: str | None = None) -> dict[str, Any]:
-    models = _model_delta(before.get("models", {}) or {}, after.get("models", {}) or {})
-    tools = _tools_delta(before.get("tools", {}) or {}, after.get("tools", {}) or {})
+    quality_issues: list[dict[str, Any]] = []
+    models = _model_delta(before.get("models", {}) or {}, after.get("models", {}) or {}, quality_issues)
+    tools = _tools_delta(before.get("tools", {}) or {}, after.get("tools", {}) or {}, quality_issues)
 
     input_tokens = sum(_num(item.get("input_tokens")) for item in models.values())
     output_tokens = sum(_num(item.get("output_tokens")) for item in models.values())
@@ -167,16 +189,16 @@ def compute_usage_delta(before: dict[str, Any], after: dict[str, Any], *, phase:
     if not models:
         tokens_before = before.get("tokens", {}) or {}
         tokens_after = after.get("tokens", {}) or {}
-        input_tokens = _delta_number(tokens_before, tokens_after, "input")
-        output_tokens = _delta_number(tokens_before, tokens_after, "output")
-        cache_read = _delta_number(tokens_before, tokens_after, "cache_read")
-        cache_write = _delta_number(tokens_before, tokens_after, "cache_write")
-        cost = _delta_number(tokens_before, tokens_after, "total_cost")
+        input_tokens = _clamp_nonnegative(_delta_number(tokens_before, tokens_after, "input"), quality_issues, path="llm_usage.input_tokens")
+        output_tokens = _clamp_nonnegative(_delta_number(tokens_before, tokens_after, "output"), quality_issues, path="llm_usage.output_tokens")
+        cache_read = _clamp_nonnegative(_delta_number(tokens_before, tokens_after, "cache_read"), quality_issues, path="llm_usage.cache_read")
+        cache_write = _clamp_nonnegative(_delta_number(tokens_before, tokens_after, "cache_write"), quality_issues, path="llm_usage.cache_write")
+        cost = _clamp_nonnegative(_delta_number(tokens_before, tokens_after, "total_cost"), quality_issues, path="llm_usage.cost")
 
     overview_before = before.get("overview", {}) or {}
     overview_after = after.get("overview", {}) or {}
-    messages = _delta_number(overview_before, overview_after, "messages")
-    sessions = _delta_number(overview_before, overview_after, "sessions")
+    messages = _clamp_nonnegative(_delta_number(overview_before, overview_after, "messages"), quality_issues, path="llm_usage.messages_delta")
+    sessions = _clamp_nonnegative(_delta_number(overview_before, overview_after, "sessions"), quality_issues, path="llm_usage.sessions_delta")
 
     delta = {
         "phase": phase,
@@ -194,13 +216,15 @@ def compute_usage_delta(before: dict[str, Any], after: dict[str, Any], *, phase:
         },
         "model_usage": models,
         "tool_usage": tools,
+        "quality": _metric_quality(quality_issues),
         "notes": [
             "Delta is reliable only when no other OpenCode sessions run concurrently.",
             "messages_delta is a proxy for LLM interaction count; raw provider call count may differ.",
         ],
     }
+    if quality_issues:
+        delta["notes"].append("Negative OpenCode stats deltas were normalized to 0; usage for this phase is approximate.")
     return delta
-
 
 def collect_stats(days: int = 1, models: int = 10) -> tuple[str, dict[str, Any]]:
     if shutil.which("opencode") is None:

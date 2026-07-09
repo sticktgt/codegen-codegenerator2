@@ -43,12 +43,18 @@ scheme_to_file_rules:
 integration_files:
   frontend_routes:
     path: "frontend/src/routes/routeRegistry.js"
+    artifact_type: frontend_integration
+    operation: modify
+    policy: may_modify
     allowed_change: true
     applies_to:
       - screen
 
   frontend_app:
     path: "frontend/src/App.jsx"
+    artifact_type: frontend_integration
+    operation: modify
+    policy: may_modify
     allowed_change: true
     applies_to:
       - screen
@@ -56,12 +62,18 @@ integration_files:
 
   backend_main:
     path: "backend/app/main.py"
+    artifact_type: backend_integration
+    operation: modify
+    policy: may_modify
     allowed_change: true
     applies_to:
       - api
 
   backend_storage_init:
     path: "backend/app/storage/__init__.py"
+    artifact_type: backend_storage
+    operation: modify
+    policy: may_modify
     allowed_change: true
     applies_to:
       - mock

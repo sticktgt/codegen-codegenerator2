@@ -6,8 +6,14 @@ export default defineConfig({
   expect: {
     timeout: 5_000,
   },
+  // Generated prototypes use local JSON mock storage by default. Run browser
+  // tests serially to avoid concurrent writes racing through the same file.
+  workers: 1,
   use: {
     baseURL: 'http://127.0.0.1:5173',
+    // Prototype anchors use data-prototype-id. This lets tests use
+    // page.getByTestId('screen.foo') without switching to data-testid.
+    testIdAttribute: 'data-prototype-id',
     trace: 'retain-on-failure',
   },
   webServer: [

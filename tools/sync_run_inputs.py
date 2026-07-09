@@ -35,6 +35,16 @@ def _copy_if_exists(src: Path, *dests: Path) -> bool:
     return True
 
 
+def _copytree_clean_if_exists(src: Path, dst: Path) -> bool:
+    if not src.exists() or not src.is_dir():
+        return False
+    if dst.exists():
+        shutil.rmtree(dst)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(src, dst)
+    return True
+
+
 def _infer_kit_dir(root: Path, run: Path, explicit_kit: Path | None) -> Path | None:
     if explicit_kit:
         path = explicit_kit if explicit_kit.is_absolute() else root / explicit_kit
@@ -89,6 +99,17 @@ def sync_run_inputs(run: Path, *, root: Path, kit: Path | None = None) -> dict[s
                     actions.append(f"sync_{name}")
             else:
                 warnings.append({"code": "kit_input_file_missing", "path": str(src)})
+
+        # Keep markdown instructions in the workspace root as the canonical
+        # prompt-facing location. Also mirror them under prototype/input for
+        # compatibility with models that still probe that path; both copies are
+        # committed as baseline metadata, not generated implementation changes.
+        if workspace.exists():
+            instructions_src = kit_dir / "instructions"
+            if _copytree_clean_if_exists(instructions_src, workspace / "instructions"):
+                actions.append("sync_instructions")
+            if _copytree_clean_if_exists(instructions_src, workspace_input / "instructions"):
+                actions.append("sync_prototype_input_instructions")
 
     # Mirror already-present run inputs into workspace inputs, useful when the run
     # was created with an older preparation script and then rerun with a newer pipeline.
