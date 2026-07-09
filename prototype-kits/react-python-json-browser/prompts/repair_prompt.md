@@ -14,7 +14,8 @@ Read:
 - instructions/architecture.md, if needed
 - instructions/repair-rules.md, if needed
 - instructions/validation-rules.md, if needed
-- instructions/pipeline-output.md, if needed
+- instructions/implementation-patterns.md, if the failure is a recurring implementation/testability mismatch
+- relevant pattern files listed in instructions/implementation-patterns.md for the failed artifact types, if applicable
 - instructions/testing/backend-pytest.md, if repairing backend pytest tests
 - instructions/testing/examples/backend-json-storage-pytest.md, if backend test storage isolation is failing
 - instructions/testing/browser-e2e.md, if repairing browser/e2e tests
@@ -28,9 +29,8 @@ Canonical instruction paths:
 Rules:
 
 Pipeline phase output discipline:
-- Do not rely on optional OpenCode todo tools (`todowrite` / `todoread`) as durable pipeline artifacts. The required JSON report files are the structured phase output.
-- Do not call optional todo tools merely to mirror `file_plan.json`; use the approved file plan and report files to record progress and changes.
 - Fix only validation failures and file-boundary violations for the current scenario/run input slice.
+- Treat file-boundary violations from `prototype/output/changed_files.json` as root repair targets. Before changing tests for validation failures, check `unexpected_files`, `policy_violations`, and `missing_required_*`; remove or revert unplanned files first, then keep the implementation using only planned paths. If an unexpected file duplicates a planned storage/mock file, delete the unexpected duplicate and update all references to the planned file.
 - If `run_input.json` is present, use it only as requirement context; do not infer extra writable files from it beyond file_plan.json.
 - Use prototype/input/file_plan.json as the only allowed file plan for implementation changes.
 - Do not create new files outside file_plan.json.
@@ -55,10 +55,11 @@ File operation discipline:
 - Do not run the full validation suite from OpenCode repair. Do not run `tools/run_validation.py` from repair. The pipeline runs official validation after repair and remains the source of truth.
 - Use `prototype/output/validation_result.json`, `prototype/output/validation.stdout.log`, `prototype/output/validation.stderr.log`, and the already-collected failure snippets to diagnose the repair. If `validation_result.json` contains `stages` or `failed_stages`, review every failed stage before editing.
 - Prioritize validation failures by dependency order. If `root_failed_stages` is present, repair those first. If a failed stage has `blocked_by_failed_stages` or appears under `downstream_failed_stages`, treat it as secondary context until the upstream stage is fixed. Do not change frontend/e2e code merely because browser tests fail while backend smoke/pytest or frontend build is failing, unless the browser failure is clearly independent (for example, a selector strict-mode error unrelated to backend data/API availability).
+- If the failure matches a kit implementation pattern, use that pattern to repair the implementation/test shape instead of adding another one-off workaround.
 - If a focused diagnostic is truly needed, run only a narrow command directly related to the changed file, such as one backend pytest file or a syntax check for Python files; avoid full install/build/e2e cycles from inside repair.
-- When running a focused diagnostic through a shell/bash tool, omit the tool-level `timeout` argument unless it is required. If a timeout argument is required by the runtime, it must be an integer value, not a quoted string or float such as `30000.0`; a schema error from an invalid timeout is not a project validation failure.
 - Do not use `node --check` on `.jsx` files or Playwright spec files. JSX and Playwright ESM syntax are validated by `npm run build` and `npm run test:e2e`.
 
+- `prototype/output/repair_report.json` is an output of this repair phase and normally does not exist at phase start. Do not read it as an input before writing it.
 - Write prototype/output/repair_report.json.
 - Update prototype/output/change_manifest.json if your repair changes implementation files.
 

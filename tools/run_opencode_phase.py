@@ -203,6 +203,43 @@ def _missing_expected_outputs(workspace: Path, phase: str) -> list[str]:
     output = workspace / "prototype" / "output"
     return [name for name in _expected_outputs_for_phase(phase) if not (output / name).exists()]
 
+
+def _workspace_has_git_changes(workspace: Path) -> bool:
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=str(workspace),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except Exception:
+        return False
+    return bool(result.stdout.strip())
+
+
+def _write_fallback_repair_report(workspace: Path, phase: str, stdout_log: Path, stderr_log: Path) -> None:
+    report_path = workspace / "prototype" / "output" / "repair_report.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    write_json(report_path, {
+        "status": "fallback_generated_by_pipeline",
+        "phase": phase,
+        "summary": (
+            "OpenCode exited without writing repair_report.json. "
+            "The pipeline generated this fallback report because the repair phase left workspace changes; "
+            "post-repair boundary checks and validation remain the source of truth."
+        ),
+        "changed_files": [],
+        "notes": [
+            "This fallback report is not an agent-authored repair summary.",
+            "Inspect changed_files.json, validation_result.json, and the OpenCode logs for detailed repair context.",
+        ],
+        "source_logs": {
+            "stdout_log": str(stdout_log),
+            "stderr_log": str(stderr_log),
+        },
+    })
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run", required=True, type=Path)
@@ -278,6 +315,17 @@ def main() -> None:
     workspace_access_violations = _detect_workspace_access_violations(workspace, project_root, args.run, stdout_log, stderr_log)
     hard_workspace_violations = [item for item in workspace_access_violations if item.get("reason") == "project_file_outside_workspace"]
     missing_expected_outputs = _missing_expected_outputs(workspace, phase)
+    auto_created_expected_outputs: list[str] = []
+    if (
+        phase.startswith("repair-")
+        and returncode == 0
+        and "repair_report.json" in missing_expected_outputs
+        and _workspace_has_git_changes(workspace)
+    ):
+        _write_fallback_repair_report(workspace, phase, stdout_log, stderr_log)
+        auto_created_expected_outputs.append("repair_report.json")
+        missing_expected_outputs = _missing_expected_outputs(workspace, phase)
+
     status = "passed" if (
         returncode == 0
         and not tool_failures
@@ -298,6 +346,7 @@ def main() -> None:
         "tool_failures": tool_failures,
         "workspace_access_violations": workspace_access_violations,
         "missing_expected_outputs": missing_expected_outputs,
+        "auto_created_expected_outputs": auto_created_expected_outputs,
     }
     failure_reasons = []
     if tool_failures:
@@ -312,6 +361,8 @@ def main() -> None:
     _log(f"OpenCode phase '{phase}' {status} in {duration:.1f}s")
     if tool_failures:
         _log(f"OpenCode phase '{phase}' failed: detected {len(tool_failures)} failed tool call(s)")
+    if auto_created_expected_outputs:
+        _log(f"OpenCode phase '{phase}' auto-created fallback output(s): {', '.join(auto_created_expected_outputs)}")
     if missing_expected_outputs:
         _log(f"OpenCode phase '{phase}' failed: missing expected workspace output(s): {', '.join(missing_expected_outputs)}")
     if workspace_access_violations:

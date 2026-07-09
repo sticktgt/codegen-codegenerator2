@@ -105,15 +105,15 @@ Python pipeline не должен:
 
 OpenCode может во время implementation/repair читать файлы и запускать отдельные диагностические команды, если это нужно для работы агента. Эти действия не являются официальным validation stage. Официальный результат validation определяется только pipeline-этапом `Run validation`, который запускает `tools/run_validation.py`. Для `validate` скрипт выполняет стадии validation последовательно (`install`, `smoke`, `test`, `build`, `frontend-behavior`) и собирает их в один `validation_result.json`, не останавливаясь на первом backend failure. При этом downstream failures помечаются зависимостями: если backend smoke/pytest или frontend build уже упали, browser/e2e failures являются диагностическим контекстом, а не обязательной первичной причиной repair.
 
-## OpenCode todo и отчётные артефакты
+## Отчётные артефакты фаз
 
-OpenCode может вести внутренний todo-list или запускать вспомогательные команды, но это не является частью контракта pipeline. Контрактными результатами фаз являются JSON-файлы, которые явно требуются prompt-ами: `plan_proposal.json`, `validation_plan_proposal.json`, `plan_review.json`, `implementation_report.json`, `change_manifest.json`, `repair_report.json`.
-
-Если внутренний todo-tool OpenCode ошибся или недоступен, это не должно ломать pipeline при условии, что обязательные JSON-отчёты записаны и последующие проверки проходят.
+Контрактными результатами фаз являются JSON-файлы, которые явно требуются prompt-ами: `plan_proposal.json`, `validation_plan_proposal.json`, `plan_review.json`, `implementation_report.json`, `change_manifest.json`, `repair_report.json`. Stdout-сводки и вспомогательные действия агента не заменяют эти файлы.
 
 ## Repair как safety net
 
 Repair — нормальная страховочная фаза, но частые однотипные repair-срабатывания нужно переводить в kit-level инструкции и reference examples. Сейчас типовые причины repair: согласование API route/prefix с тестами, изоляция JSON mock storage в pytest, Playwright selectors, стабильность e2e test data и соответствие тестовых ожиданий фактической семантике требования.
+
+Если repair внёс изменения, но агент не успел записать `repair_report.json`, pipeline может создать fallback-отчёт и продолжить post-repair проверки. Такой отчёт не заменяет содержательную диагностику агента; итоговым источником истины остаются `changed_files.json`, `validation_result.json` и post-repair validation.
 
 Не надо закрывать эти случаи растущим набором Python-запретов. Python-checker должен оставаться на уровне контрактных инвариантов: границы файлов, forbidden paths, dependency boundary, обязательные отчёты, грубые UI anchor инварианты.
 
@@ -589,6 +589,11 @@ OpenCode may run small diagnostic commands while implementing or repairing a sli
 
 ### OpenCode self-check limits
 
-Full validation is owned by the pipeline. `tools/run_validation.py` records per-stage results for install, smoke, backend pytest, frontend build, and browser/e2e, and restores semantic workspace files between stages so tests do not leak JSON mock-storage mutations into later checks. OpenCode phases may use focused diagnostics, but they should not call `tools/run_validation.py` or run broad install/build/e2e loops from inside implementation or repair. This keeps repair shorter and prevents duplicate validation from being interpreted as a separate source of truth. When using shell/bash diagnostics, omit tool-level timeout unless necessary; if used, it must be an integer, not a float/string like `30000.0`.
+Full validation is owned by the pipeline. `tools/run_validation.py` records per-stage results for install, smoke, backend pytest, frontend build, and browser/e2e, and restores semantic workspace files between stages so tests do not leak JSON mock-storage mutations into later checks. OpenCode phases may use focused diagnostics, but they should not call `tools/run_validation.py` or run broad install/build/e2e loops from inside implementation or repair. This keeps repair shorter and prevents duplicate validation from being interpreted as a separate source of truth.
 
 Backend tests for JSON-backed prototypes should isolate storage via injection, route-module dependency replacement, dependency overrides, or small app/service factories. They should not rewrite implementation source files from pytest fixtures.
+
+## Kit implementation patterns
+
+For recurring implementation shapes, prefer kit-level patterns over adding more prompt rules. The react-python-json-browser kit provides `instructions/implementation-patterns.md` as an index from artifact types to focused patterns, for example FastAPI JSON CRUD and React browser CRUD/list/search flows. Patterns are guidance only: they do not override `file_plan.json` and do not grant permission to create extra files.
+

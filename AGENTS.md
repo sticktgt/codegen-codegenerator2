@@ -170,13 +170,15 @@ OpenCode может запускать отдельные диагностиче
 - Документация проекта ведется на русском языке и должна оставаться связной, без накопления мелких version notes.
 - После патчей указывать измененные файлы, новые файлы, удаленные файлы и команды проверки.
 
-## OpenCode todo и phase reports
+## Phase reports
 
-Не считать `todowrite` / `todoread` контрактными артефактами pipeline. Если OpenCode использует их внутренне, это не заменяет обязательные report files. Для передачи результата между фазами использовать только файлы, требуемые prompt-ами: `plan_proposal.json`, `validation_plan_proposal.json`, `plan_review.json`, `implementation_report.json`, `change_manifest.json`, `repair_report.json`.
+Для передачи результата между фазами использовать только файлы, требуемые prompt-ами: `plan_proposal.json`, `validation_plan_proposal.json`, `plan_review.json`, `implementation_report.json`, `change_manifest.json`, `repair_report.json`. Stdout-сводки не заменяют обязательные report files.
 
 ## Типовые причины repair
 
 Repair пока часто чинит не архитектуру, а тестовый harness и согласование тестов с реализацией: API prefix/routes, изоляцию JSON mock storage, Playwright selectors, runtime-unique e2e data и неверные ожидания тестов. Повторяющиеся случаи лучше переводить в kit instructions/examples, а не в новые Python-checker blockers.
+
+Если repair внёс изменения, но агент не записал `repair_report.json`, pipeline может создать fallback-отчёт и всё равно выполнить post-repair проверки. Такой fallback нужен только для устойчивости pipeline; содержательная оценка идёт по изменениям и результатам validation.
 
 ## Проверка после изменений
 
@@ -214,4 +216,9 @@ Agent-run commands are diagnostics only; pipeline validation remains the source 
 
 ## Staged validation
 
-`tools/run_validation.py` owns canonical validation. For the `validate` task it runs install, smoke, backend pytest, frontend build, and browser/e2e as separate stages, records `stages` / `failed_stages` in `validation_result.json`, and restores semantic workspace files between stages so runtime JSON mock-data mutations do not contaminate later checks. It also marks downstream failures with `blocked_by_failed_stages`, `root_failed_stages`, and `downstream_failed_stages`; repair should prioritize root failed stages first and treat downstream browser/e2e failures as context while upstream backend/build failures remain unresolved. OpenCode repair should read all failed stages but should not call `tools/run_validation.py` itself. Focused shell/bash diagnostics should omit tool-level timeout unless necessary; if used, timeout must be an integer, not a float/string such as `30000.0`.
+`tools/run_validation.py` owns canonical validation. For the `validate` task it runs install, smoke, backend pytest, frontend build, and browser/e2e as separate stages, records `stages` / `failed_stages` in `validation_result.json`, and restores semantic workspace files between stages so runtime JSON mock-data mutations do not contaminate later checks. It also marks downstream failures with `blocked_by_failed_stages`, `root_failed_stages`, and `downstream_failed_stages`; repair should prioritize root failed stages first and treat downstream browser/e2e failures as context while upstream backend/build failures remain unresolved. OpenCode repair should read all failed stages but should not call `tools/run_validation.py` itself.
+
+## Kit implementation patterns
+
+For recurring implementation shapes, prefer kit-level patterns over adding more prompt rules. The react-python-json-browser kit provides `instructions/implementation-patterns.md` as an index from artifact types to focused patterns, for example FastAPI JSON CRUD and React browser CRUD/list/search flows. Patterns are guidance only: they do not override `file_plan.json` and do not grant permission to create extra files.
+

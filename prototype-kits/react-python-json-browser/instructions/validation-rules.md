@@ -120,4 +120,4 @@ Backend test rule:
 
 - OpenCode may run targeted diagnostic commands during implementation or repair, but official validation status comes from the pipeline validation step.
 - Required phase report files are the durable structured output. See `instructions/pipeline-output.md`.
-- Internal agent todo lists are not validation artifacts and must not replace report files.
+- Agent stdout summaries are not validation artifacts and must not replace report files.

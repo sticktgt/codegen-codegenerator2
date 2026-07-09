@@ -44,7 +44,8 @@ Rules:
   - Use `source: "resolved_by_planner"` for existing elements you inferred from requirements, scheme_model, traceability, or code.
 - If the slice extends existing behavior, preserve already accepted behavior by default. Prefer adding a wrapper, UI state, or new artifact over repurposing an existing artifact with a stable responsibility.
 - If a new scheme action is implemented inside an existing screen rather than a dedicated action file, list it in `design_delta.proposed_new_elements` with `implementation_mode: "screen_internal"` and `owning_artifact`. Also include that action id in the owning screen file-plan item `scheme_elements` so UI anchor checks can validate it.
-- If a new scheme action is implemented by a dedicated file, list it with `implementation_mode: "separate_artifact"` and `artifact` or `planned_artifact`.
+- For simple React CRUD/list/search screens, prefer screen-internal UI actions when the button/form handler is rendered directly by the screen. Do not create dedicated frontend action files just for naming symmetry.
+- If a new scheme action is implemented by a dedicated file, list it with `implementation_mode: "separate_artifact"` and `artifact` or `planned_artifact`, and the path must follow `generation-rules.yaml` exactly: `frontend/src/actions/{PascalName}.js` such as `CreateNote.js`, not kebab-case or lowercase variants.
 - Do not repurpose an existing action/API/service artifact unless the requirement explicitly asks to replace the old behavior. If you must modify an existing artifact, explain why reuse/wrapping is insufficient in `design_delta.preservation_decisions`.
 - If tests are needed, propose validation checks in validation_plan_proposal.json; do not create them yet.
 - Tests are important, but test file modification is not always necessary. Choose an explicit `validation_intent` for executable validation checks:

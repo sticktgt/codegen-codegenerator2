@@ -13,7 +13,8 @@ Read:
 - instructions/architecture.md
 - instructions/coding-rules.md
 - instructions/validation-rules.md
-- instructions/pipeline-output.md
+- instructions/implementation-patterns.md
+- relevant pattern files listed in instructions/implementation-patterns.md for artifact types present in file_plan.json
 - instructions/testing/backend-pytest.md, if creating or updating backend pytest tests
 - instructions/testing/browser-e2e.md, if creating or updating browser/e2e tests
 
@@ -25,11 +26,10 @@ Canonical instruction paths:
 Rules:
 
 Pipeline phase output discipline:
-- Do not rely on optional OpenCode todo tools (`todowrite` / `todoread`) as durable pipeline artifacts. The required JSON report files are the structured phase output.
-- Do not call optional todo tools merely to mirror `file_plan.json`; use the approved file plan and report files to record progress and changes.
 - Use prototype/input/file_plan.json as the only allowed file plan.
 - Do not infer additional files from design_delta or naming symmetry. If a new scheme element is screen-internal, implement it only inside its owning artifact when that artifact is allowed by file_plan.json.
 - Do not create, edit, rename, or delete files outside file_plan.json.
+- For mock/storage JSON files, use exactly the storage path listed in file_plan.json. Do not create alias, fallback, seed, or shortened-name storage files such as `notes_mock.json` when the plan lists `notes_json_mock.json`. Update service defaults, API code, tests, and UI assumptions to use the planned path or test-owned temp paths.
 - Respect file policies in file_plan.json:
   - must_create: create the file if it does not exist.
   - may_modify / modify_allowed: modify only if needed.
@@ -43,7 +43,6 @@ File operation discipline:
 - Use Edit only when modifying an existing file and you have the exact old text to replace.
 - Do not treat failed reads of planned create files as a validation problem; create the planned files.
 - Do not run the full validation suite from OpenCode implementation. The official validation is performed later by the pipeline. Do not run `tools/run_validation.py` from implementation. Use only minimal, phase-local diagnostics when necessary, such as Python syntax checks for generated backend files.
-- When running a focused diagnostic through a shell/bash tool, omit the tool-level `timeout` argument unless it is required. If a timeout argument is required by the runtime, it must be an integer value, not a quoted string or float such as `30000.0`.
 - For frontend diagnostics, do not use `node --check` on `.jsx` files or Playwright spec files. JSX and Playwright ESM syntax are handled by the configured Vite/Playwright commands, not by raw Node syntax checking.
 - Do not rewrite the whole application.
 - Do not implement requirements outside the current scenario/run input slice.
@@ -71,6 +70,7 @@ File operation discipline:
 - For JSON-backed services, prefer an implementation shape that is testable without modifying source files at test time: for example a service constructor parameter, dependency function, or route-level service object that tests can replace with an isolated instance.
 - Browser/e2e tests for local JSON-backed prototypes must follow `instructions/testing/browser-e2e.md`: use repeatable test-owned data for mutating flows, avoid cross-test state dependencies, use prototype anchors through the configured `data-prototype-id` test id attribute, avoid broad locators when duplicate visible text is likely, and do not inspect backend storage files directly from Playwright.
 - If validation_plan.json proposes a test file that is not present in file_plan.json, do not create it; report the limitation.
+- Use the kit implementation patterns selected by instructions/implementation-patterns.md when they match the approved file plan. Patterns are implementation guidance only; they do not grant permission to create files outside file_plan.json.
 - Write prototype/output/implementation_report.json.
 - Write prototype/output/change_manifest.json.
 

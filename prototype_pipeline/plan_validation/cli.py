@@ -37,7 +37,42 @@ def main() -> None:
         _write_promoted_plans(args.run, result, validation_plan_path)
     print(f"Plan validation {result['status']}")
     if result.get("status") != "passed":
+        _print_failure_details(result)
         raise SystemExit(1)
+
+
+def _print_failure_details(result: dict) -> None:
+    blockers = result.get("blockers") or []
+    warnings = result.get("warnings") or []
+    dropped = result.get("dropped_validation_check_ids") or []
+    if blockers:
+        print("Plan validation blockers:")
+        for item in blockers:
+            print(f"- {_format_issue(item)}")
+    if warnings:
+        print("Plan validation warnings:")
+        for item in warnings[:20]:
+            print(f"- {_format_issue(item)}")
+        if len(warnings) > 20:
+            print(f"- ... {len(warnings) - 20} more warning(s)")
+    if dropped:
+        print("Dropped validation checks:")
+        for check_id in dropped:
+            print(f"- {check_id}")
+
+
+def _format_issue(item: dict) -> str:
+    code = item.get("code") or "issue"
+    message = item.get("message") or ""
+    fields = []
+    for key in ["path", "field", "artifact_type", "scheme_element_id", "validation_check_id"]:
+        value = item.get(key)
+        if value is not None:
+            fields.append(f"{key}={value}")
+    if "scheme_element_ids" in item:
+        fields.append(f"scheme_element_ids={item.get('scheme_element_ids')}")
+    suffix = f" ({', '.join(fields)})" if fields else ""
+    return f"{code}: {message}{suffix}"
 
 
 def _write_promoted_plans(run: Path, result: dict, validation_plan_path: Path | None) -> None:
