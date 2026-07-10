@@ -19,6 +19,7 @@ Read:
 - instructions/architecture.md
 - instructions/planning-rules.md
 - instructions/validation-rules.md
+- instructions/testing/test-method-catalog.md
 - current workspace source files as needed
 
 Canonical instruction paths:

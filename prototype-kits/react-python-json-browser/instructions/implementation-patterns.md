@@ -1,19 +1,21 @@
-# Kit implementation patterns
+# Implementation patterns index
 
-Use this file as the index for implementation patterns in this kit. Patterns are reusable recipes for common artifact combinations. They are guidance for implementation shape and testability, not additional writable-file permissions.
+Use these patterns as reusable kit guidance. They are not a permission system: `prototype/input/file_plan.json` remains the only source of writable files.
 
-Always obey `prototype/input/file_plan.json` first. Read only the pattern files that match artifact types or validation files in the approved file plan.
+Principle:
+- Keep pattern text as principle + kit-specific example.
+- Do not turn one demo failure into a global rule; when a detail is specific to FastAPI, JSON storage, React, or Playwright, say so explicitly.
+- When a new recurring situation appears, add a short catalog/pattern entry instead of scattering duplicate reminders across prompts.
 
-## Pattern selection
+Relevant files for this kit:
+- `instructions/testing/test-method-catalog.md` — canonical testing methods for backend, UI static, and browser/e2e validation.
+- `instructions/patterns/backend-fastapi-json-crud.md` — FastAPI + JSON-backed CRUD implementation pattern.
+- `instructions/patterns/frontend-react-json-crud.md` — React CRUD/list/search screen implementation pattern.
+- `instructions/testing/backend-pytest.md` — pytest-specific implementation rules.
+- `instructions/testing/browser-e2e.md` — Playwright-specific implementation rules.
 
-- If the file plan contains `backend_api`, `backend_service`, `backend_model`, or `backend_storage` for a JSON-backed CRUD feature, read `instructions/patterns/backend-fastapi-json-crud.md`.
-- If the file plan contains `frontend_screen`, `frontend_widget`, `frontend_action`, or `frontend_behavior` for a React CRUD/list/search flow, read `instructions/patterns/frontend-react-json-crud.md`.
-- If the file plan contains backend pytest files for JSON-backed API behavior, also use `instructions/testing/backend-pytest.md` and the backend pytest example.
-- If the file plan contains browser/e2e behavior tests, also use `instructions/testing/browser-e2e.md` and the anchored Playwright example.
-
-## How to use patterns
-
-- Adapt names, paths, route prefixes, scheme ids, and labels to the current file plan and requirements.
-- Do not copy examples blindly when the approved file plan uses different paths or artifact ownership.
-- Do not add files just because a pattern mentions them. If a useful file is not in `file_plan.json`, report the limitation instead of creating it.
-- Prefer the implementation shape that makes the planned validation straightforward without test-time source rewrites or cross-test state.
+Selection guidance:
+- If the file plan includes backend API/service/model/storage artifacts, read the backend CRUD pattern.
+- If the file plan includes React screen/widget/action artifacts, read the frontend CRUD pattern.
+- If the validation plan includes backend pytest files, read the test method catalog and backend pytest rules.
+- If the validation plan includes browser/e2e files, read the test method catalog and browser/e2e rules.

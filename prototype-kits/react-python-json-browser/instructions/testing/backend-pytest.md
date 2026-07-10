@@ -1,20 +1,14 @@
 # Backend pytest rules
 
-Use these rules when creating or repairing backend tests for this kit.
+Read `instructions/testing/test-method-catalog.md` first and use the matching catalog method. For this kit, most backend feature API tests should use `backend.pytest.api.mutable-state`.
 
-- Prefer the simplest executable test style that proves the requirement and fits the current application shape. For ordinary FastAPI CRUD behavior, synchronous `TestClient` tests are usually sufficient.
-- Async pytest tests, plugins, or other additional test dependencies are allowed when they are technically useful and the dependency is already available, or when the approved file plan explicitly includes the relevant package/dependency file change.
-- Do not invent dependency changes from inside a test file. If a missing dependency would be the better solution but package files are not writable in the approved file plan, use available kit dependencies or report the limitation for replanning.
-- Keep dependency choices requirement-driven. Do not add a plugin only to compensate for a test design that can be expressed clearly with existing tools.
-- Isolate local storage and fixtures. Tests must not leave tracked mock JSON files changed after they run.
-- Do not implement test isolation by editing implementation source files on disk from a pytest fixture. This is fragile, leaks across tests, and can leave the workspace changed.
-- Prefer dependency injection, constructor parameters, route-module service replacement, FastAPI dependency overrides, or an explicit app/service factory.
-- For services that cache storage paths, clients, or singletons at import time, patch or construct the actual service object used by the route so each test really uses the isolated fixture. Patching a function after a singleton has already captured its value is not enough.
-- Avoid module-level `TestClient` when the test must replace app dependencies per test. Create the client inside the fixture after dependency overrides or monkeypatches are installed.
-- Each test should start from a known dataset, normally an empty temp JSON file or a small temp seed written inside that test/fixture. Do not depend on records created by earlier tests.
-- Test expectations must match the implemented requirement semantics. For example, a search test should only expect records that contain the query according to the documented search behavior.
+Backend tests should validate public backend behavior without changing implementation files at test time.
 
-
-Reference examples:
-
-- `instructions/testing/examples/backend-json-storage-pytest.md` shows one way to isolate JSON-backed storage in backend API tests. Adapt it to the generated service/API shape; do not copy names blindly.
+- Use FastAPI `TestClient` or the kit's equivalent API client for API contract tests.
+- For mutable/external dependencies, use the seam selected by the implementation pattern: FastAPI dependency override, app/service factory, constructor injection, repository interface, or exact route-module service replacement.
+- Prefer FastAPI `Depends(get_<entity>_service)` plus `app.dependency_overrides[get_<entity>_service] = ...` for new FastAPI API routes in this kit.
+- Initialize a known dataset per test or fixture; do not depend on records created by earlier tests or on tracked mock storage state.
+- Use temp directories/files for storage fixtures. Do not symlink over tracked mock files and do not rewrite implementation `.py` files from fixtures.
+- Clear dependency overrides and monkeypatches after each test using fixtures/finalizers.
+- Match framework behavior: FastAPI/Pydantic request schema errors usually return 422; use 400 only for explicit domain validation implemented after schema parsing.
+- Keep baseline smoke checks separate. Do not add feature CRUD/search assertions to `backend/tests/test_smoke.py`; create or extend the planned feature test file instead.

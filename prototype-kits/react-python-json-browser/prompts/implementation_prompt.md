@@ -15,6 +15,7 @@ Read:
 - instructions/validation-rules.md
 - instructions/implementation-patterns.md
 - relevant pattern files listed in instructions/implementation-patterns.md for artifact types present in file_plan.json
+- instructions/testing/test-method-catalog.md, if creating or updating any validation test
 - instructions/testing/backend-pytest.md, if creating or updating backend pytest tests
 - instructions/testing/browser-e2e.md, if creating or updating browser/e2e tests
 
@@ -54,7 +55,7 @@ File operation discipline:
 - If a planned test or implementation would be better with a missing dependency but package/config files are not writable, use available kit dependencies when reasonable or report the limitation in implementation_report.json for replanning.
 - Do not use react-router-dom, axios, or undeclared external packages.
 - Use backend imports rooted at app.*, not backend.app.*.
-- If a validation test file is listed in file_plan.json, follow its policy and `validation_intent`:
+- If a validation test file is listed in file_plan.json, follow its policy, `validation_intent`, and any `test_method_id`/catalog guidance:
   - `validation_intent: "rerun_existing"` with `read_only`/`read`: do not edit the test file; it is an existing regression check to be rerun by validation.
   - `validation_intent: "extend_existing_test"`: update the existing test file only for the missing acceptance-criteria coverage.
   - `validation_intent: "create_new_test"`: create the planned test file only if file_plan.json allows it.
@@ -63,12 +64,12 @@ File operation discipline:
   - `validation_intent: "create_behavior_test"`: create the planned browser/e2e test only if file_plan.json allows it and the kit capability is enabled.
 - For non-file checks such as `ui_static`, do not create any test file; just implement the required UI anchors in the allowed UI artifact.
 - Otherwise do not create tests.
+- Do not modify `backend/tests/test_smoke.py` for feature-specific API behavior. If smoke is present in file_plan.json as anything other than read-only/rerun coverage, report the conflict in `implementation_report.json` rather than extending smoke.
+- For Playwright repeated item actions, first locate the item/card and then call actions inside that locator. Avoid chained `>> text=... >>` selector strings for row actions.
+
 - Generated or modified tests must use isolated temporary data/fixtures. Do not leave tracked mock storage files such as backend/app/storage/*.json changed after tests run.
-- Backend tests must not edit implementation source files on disk as a fixture strategy. Do not rewrite service modules from tests to change a storage path. Prefer constructing/injecting the service with a temporary path, monkeypatching the actual route-module dependency before requests, dependency overrides, or an explicit app/service factory when the generated implementation supports it.
-- If a backend route keeps a module-level service instance, tests that replace that service must patch the route module object that the endpoint actually uses; patching a helper function after the singleton has been created is not enough.
-- Backend pytest tests should use the simplest style that proves the requirement. Synchronous FastAPI `TestClient` is usually enough for ordinary API behavior, but async pytest plugins or other test dependencies are allowed when already available or when file_plan.json explicitly allows the package-file change.
-- For JSON-backed services, prefer an implementation shape that is testable without modifying source files at test time: for example a service constructor parameter, dependency function, or route-level service object that tests can replace with an isolated instance.
-- Browser/e2e tests for local JSON-backed prototypes must follow `instructions/testing/browser-e2e.md`: use repeatable test-owned data for mutating flows, avoid cross-test state dependencies, use prototype anchors through the configured `data-prototype-id` test id attribute, avoid broad locators when duplicate visible text is likely, and do not inspect backend storage files directly from Playwright.
+- Backend pytest tests must follow `instructions/testing/test-method-catalog.md` and `instructions/testing/backend-pytest.md`. In particular, mutable or external dependencies used by API routes must be replaceable in tests through an explicit seam such as a FastAPI dependency/provider, app/service factory, constructor injection, or exact route-module service replacement. Do not rewrite implementation source files from pytest fixtures.
+- Browser/e2e tests must follow `instructions/testing/test-method-catalog.md` and `instructions/testing/browser-e2e.md`: use repeatable test-owned data, scoped prototype anchors, awaited Playwright async locator APIs, and visible-state waits after async UI transitions before derived assertions. Do not inspect backend storage files directly from Playwright.
 - If validation_plan.json proposes a test file that is not present in file_plan.json, do not create it; report the limitation.
 - Use the kit implementation patterns selected by instructions/implementation-patterns.md when they match the approved file plan. Patterns are implementation guidance only; they do not grant permission to create files outside file_plan.json.
 - Write prototype/output/implementation_report.json.

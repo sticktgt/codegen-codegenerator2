@@ -1,41 +1,65 @@
-# Example: browser/e2e flow with prototype anchors
+# Example: anchored Playwright CRUD/list/search flow
 
-This is a reference pattern, not a mandatory implementation. Adapt ids, roles, and labels to the generated UI.
+Use this example with catalog methods:
+- `web.e2e.playwright.crud-list-search-flow`
+- `web.e2e.playwright.form-submit-flow`
+- `web.e2e.playwright.item-action-flow`
+- `web.e2e.playwright.async-state-transition`
+- `web.e2e.playwright.filtered-list-flow`
 
-```javascript
-import { test, expect } from '@playwright/test';
+```js
+import { expect, test } from '@playwright/test';
 
-test('user can create and edit an item', async ({ page }) => {
-  const suffix = Date.now();
-  const title = `E2E item ${suffix}`;
-  const editedTitle = `E2E item edited ${suffix}`;
+test('user can create, edit, list, and search records', async ({ page }) => {
+  const runtimeTitle = `Runtime title ${Date.now()}`;
+  const runtimeBody = `Runtime body ${Date.now()}`;
+  const updatedTitle = `${runtimeTitle} updated`;
 
   await page.goto('/');
+  await expect(page.getByTestId('screen.note-list')).toBeVisible();
 
-  const screen = page.getByTestId('screen.item-list');
-  await expect(screen).toBeVisible();
+  // Open the form through an auxiliary control. This is not the create action.
+  await page.getByTestId('control.open-create-note').click();
+  const form = page.locator('form').filter({ has: page.getByTestId('action.create-note') });
+  await expect(form).toBeVisible();
+  await form.getByLabel('Title').fill(runtimeTitle);
+  await form.getByLabel('Content').fill(runtimeBody);
+  await form.getByTestId('action.create-note').click();
 
-  await screen.getByTestId('control.open-create-item').click();
-  const form = screen.getByTestId('form.item');
-  await form.getByLabel(/title/i).fill(title);
-  await form.getByRole('button', { name: /save item/i, exact: true }).click();
+  const createdRow = page.getByTestId('item.note').filter({ hasText: runtimeTitle });
+  await expect(createdRow).toBeVisible();
+  await expect(createdRow).toContainText(runtimeBody);
 
-  const itemRow = screen.getByTestId('item.row').filter({ hasText: title });
-  await expect(itemRow).toBeVisible();
+  // For repeated rows/cards, scope the action inside the row.
+  await createdRow.getByTestId('action.edit-note').click();
+  const editForm = page.locator('form').filter({ has: page.getByTestId('action.edit-note') });
+  await expect(editForm).toBeVisible();
+  await editForm.getByLabel('Title').fill(updatedTitle);
+  await editForm.getByTestId('action.edit-note').click();
 
-  await itemRow.getByRole('button', { name: /edit/i, exact: true }).click();
-  await form.getByLabel(/title/i).fill(editedTitle);
-  await form.getByRole('button', { name: /save item/i, exact: true }).click();
+  const updatedRow = page.getByTestId('item.note').filter({ hasText: updatedTitle });
+  await expect(updatedRow).toBeVisible();
 
-  await expect(screen.getByTestId('item.row').filter({ hasText: editedTitle })).toBeVisible();
+  const search = page.getByTestId('widget.note-search').getByRole('textbox');
+  await search.fill(updatedTitle);
+  await expect(updatedRow).toBeVisible();
+
+  await search.fill('');
+  await expect(updatedRow).toBeVisible();
+  const rowCount = await page.getByTestId('item.note').count();
+  expect(rowCount).toBeGreaterThan(0);
 });
 ```
 
-Key ideas:
+Avoid this fragile row-action selector:
 
-- `getByTestId` uses `data-prototype-id` in this kit because Playwright config sets `testIdAttribute`.
-- Locators are scoped through the owning screen, form, or row.
-- The create opener and create submitter have different anchors/names, so the test never has to guess between "Create" and "Create Note".
-- Test data is runtime-unique, so validation can rerun after repair without colliding with earlier data.
-- The flow does not depend on records created by another e2e test.
-- The browser test verifies behavior through the UI. It does not read backend storage files or assert private mock JSON contents.
+```js
+await page.click(`[data-prototype-id="item.note"] >> text=${runtimeTitle} >> [data-prototype-id="action.edit-note"]`);
+```
+
+Instead locate the row first and click the action inside it:
+
+```js
+const row = page.getByTestId('item.note').filter({ hasText: runtimeTitle });
+await row.getByTestId('action.edit-note').click();
+```

@@ -38,6 +38,9 @@ def extract_validation_file_entries(
             _warn_for_non_executable_check(check, check_type, warnings)
             continue
         path = str(proposed_file).replace("\\", "/")
+        smoke_warning = _coerce_smoke_test_to_read_only(check, path)
+        if smoke_warning:
+            warnings.append(smoke_warning)
         if not capability_enabled:
             dropped_check_ids.add(str(check.get("id")))
             warnings.append({
@@ -145,6 +148,36 @@ def _warn_for_non_executable_check(check: dict[str, Any], check_type: str, warni
         "message": "Functional validation checks need an explicit proposed_file to be executable by this pipeline.",
     })
 
+
+
+def _coerce_smoke_test_to_read_only(check: dict[str, Any], path: str) -> dict[str, Any] | None:
+    """Keep baseline smoke tests read-only even when planner intent is too broad.
+
+    Smoke tests are baseline import/health checks. They are useful as rerun
+    coverage, but a feature slice should not mutate ``backend/tests/test_smoke.py``
+    or hide feature API assertions there. Rather than fail an otherwise safe plan,
+    coerce the smoke check to read-only rerun coverage and emit a warning. Feature
+    behavior remains covered by the feature API/e2e checks that the coverage guard
+    already requires.
+    """
+    normalized = path.replace("\\", "/")
+    if not normalized.endswith("/test_smoke.py") and normalized != "backend/tests/test_smoke.py":
+        return None
+    intent = str(check.get("validation_intent") or check.get("intent") or "").strip().lower()
+    if intent and intent != "rerun_existing":
+        check["validation_intent"] = "rerun_existing"
+        check["intent"] = "rerun_existing"
+        return {
+            "code": "smoke_test_coerced_to_read_only",
+            "path": normalized,
+            "check_id": check.get("id"),
+            "original_validation_intent": intent,
+            "message": (
+                "Smoke tests are baseline import/health checks and were coerced to read-only rerun coverage. "
+                "Put feature API behavior in a planned feature test such as backend/tests/test_<feature>_api.py."
+            ),
+        }
+    return None
 
 def _entry_for_check(
     check: dict[str, Any],

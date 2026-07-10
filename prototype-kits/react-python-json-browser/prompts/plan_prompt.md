@@ -11,6 +11,7 @@ Read:
 - instructions/architecture.md
 - instructions/planning-rules.md
 - instructions/validation-rules.md
+- instructions/testing/test-method-catalog.md
 - the current workspace source files as needed
 
 Canonical instruction paths:
@@ -47,26 +48,20 @@ Rules:
 - For simple React CRUD/list/search screens, prefer screen-internal UI actions when the button/form handler is rendered directly by the screen. Do not create dedicated frontend action files just for naming symmetry. In the planned screen file item, include the `action.*` ids rendered by the screen so ui_static can validate the anchors.
 - If a new scheme action is implemented by a dedicated file, list it with `implementation_mode: "separate_artifact"` and `artifact` or `planned_artifact`, and the path must follow `generation-rules.yaml` exactly: `frontend/src/actions/{PascalName}.js` such as `CreateNote.js`, not kebab-case or lowercase variants.
 - Do not repurpose an existing action/API/service artifact unless the requirement explicitly asks to replace the old behavior. If you must modify an existing artifact, explain why reuse/wrapping is insufficient in `design_delta.preservation_decisions`.
-- If tests are needed, propose validation checks in validation_plan_proposal.json; do not create them yet.
-- Tests are important, but test file modification is not always necessary. Choose an explicit `validation_intent` for executable validation checks:
+- If tests are needed, propose validation checks in validation_plan_proposal.json; do not create them yet. Choose validation methods from `instructions/testing/test-method-catalog.md`; include `test_method_id` for executable checks and for non-file `ui_static` checks when a matching method exists.
+- Tests are important, but test file modification is not always necessary. Choose explicit validation intent for executable validation checks:
   - `rerun_existing`: use when an existing test file already covers preserved behavior; the test file must be read-only in the promoted file plan.
-  - `extend_existing_test`: use when an existing test file should be modified because acceptance criteria are not covered by current tests.
-  - `create_new_test`: use when no suitable existing test file exists and the kit supports that validation capability.
-- For preserved existing behavior, first prefer `validation_intent: "rerun_existing"` with an existing test file. Do not propose modifying a test file merely to restate a regression already covered.
-- Use `extend_existing_test` or `create_new_test` when new behavior needs executable coverage and the kit can run that validation.
-- Do not propose frontend unit test files unless frontend/package.json already has a test script and declared test runner.
-- Prefer backend API/service tests for backend behavior in this browser-enabled kit.
-- When the slice changes web UI controls or UI behavior, include a `ui_static` validation check linked to the relevant requirement and scheme action/screen; use `proposed_file: null` and do not set `validation_intent` for this check because it does not create or modify a test file.
-- For modified frontend screen files, include the relevant existing `screen.*` id in that file-plan item `scheme_elements`; the implementation must preserve or add a root `data-prototype-id` anchor for that screen id. If the screen directly renders controls for `action.*` elements, include those action ids in the same screen file-plan item so `ui_static` validates anchors on that screen.
-- For created frontend widget files, include the new `widget.*` id in that file-plan item `scheme_elements`; the implementation must add a root `data-prototype-id` anchor for that widget id. Do not include unrelated action ids in a widget file-plan item unless the widget itself renders the action controls.
-- Browser/e2e UI behavior tests are optional kit capabilities. If `architecture-contract.yaml` has `validation_capabilities.frontend_behavior.enabled: true` and the kit exposes an executable frontend behavior validation task, propose `ui_behavior`, `browser_e2e`, or `e2e` checks for changed UI behavior acceptance criteria.
-- Use `validation_intent: "create_behavior_test"`, `"extend_behavior_test"`, or `"rerun_behavior_test"` only for frontend behavior checks and only when the frontend_behavior capability is enabled and executable.
-- If frontend_behavior is disabled, do not propose browser/e2e test files; use `ui_static` anchors plus relevant existing regression tests and record the missing browser behavior coverage as a kit limitation or assumption.
-- If frontend_behavior is enabled and executable, changed UI behavior acceptance criteria should have non-file `ui_static` anchor checks and at least one executable browser/e2e behavior check with `validation_intent: "create_behavior_test"`, `"extend_behavior_test"`, or `"rerun_behavior_test"`.
-- Keep browser/e2e planning lean. For one coherent CRUD/list/search screen, prefer one compact spec file that covers the main user journey and can be linked to multiple requirement ids through multiple validation checks. Do not create a separate browser spec for every requirement unless the requirements are genuinely independent screens or flows.
-- Backend/API tests should carry most edge cases and negative cases. Browser/e2e should prove representative user-visible happy paths and the most important integration behavior, not exhaustively retest every backend branch.
-- Avoid empty-state, case-insensitive-search, and other state-sensitive browser checks unless the test controls the dataset through public API/setup or an isolated fixture. For persistent JSON-backed prototypes, such checks are often flaky across validation reruns and repair loops.
-- Validation tests should normally use dependencies already present in the baseline kit. New test dependencies are allowed only when the plan explicitly includes the relevant package/config file change and a short rationale.
+  - `extend_existing_test`: use when an existing executable test file should be modified because acceptance criteria are not covered.
+  - `create_new_test`: use when no suitable existing test file exists and the kit can run that validation.
+  - `rerun_behavior_test` / `extend_behavior_test` / `create_behavior_test`: use only for frontend behavior checks when `frontend_behavior` is enabled and executable.
+- For preserved behavior, prefer rerunning existing tests before creating or modifying test files.
+- Do not propose frontend unit test files unless `frontend/package.json` already has a test script and declared test runner.
+- Prefer backend API/service tests for backend behavior, edge cases, validation errors, and most negative cases. For Python API behavior with mutable state, use `test_method_id: "backend.pytest.api.mutable-state"`. Do not use smoke tests for feature-specific API behavior; smoke checks are baseline reruns (`backend.smoke.import-health`) and should normally be read-only.
+- For changed web UI controls or UI behavior, include non-file `ui_static` checks linked to the relevant requirement and scheme screen/widget/action. Use `proposed_file: null`, omit `validation_intent`, and use `test_method_id: "web.ui.static-anchors"` for `ui_static`.
+- For created or modified frontend screen/widget files, include the relevant `screen.*`, `widget.*`, and directly rendered `action.*` ids in that file-plan item's `scheme_elements`, so implementation and `ui_static` can validate the required anchors. Do not put unrelated action ids on a widget unless the widget itself renders those controls.
+- If `architecture-contract.yaml` enables executable `frontend_behavior`, changed user-visible UI behavior should also have at least one executable browser/e2e behavior check under an allowed e2e root. Keep that coverage lean: one compact spec may cover several related requirements for a single CRUD/list/search screen. For CRUD/list/search screens, use `test_method_id: "web.e2e.playwright.crud-list-search-flow"` and combine it with the relevant form, item-action, filtered-list, async-state, and count assertion catalog methods in the check description if needed.
+- If `frontend_behavior` is disabled, do not propose unsupported browser/e2e files; record the missing browser behavior coverage as a kit limitation or assumption.
+- Do not create separate browser specs or browser edge-case tests merely for symmetry with requirement ids. Multiple validation checks may point to the same compact browser spec.
 - If the requirement is ambiguous, make a conservative planner decision that preserves existing behavior. Do not ask the analyst implementation-design questions about internal file responsibilities.
 
 Write exactly these JSON reports:
@@ -136,7 +131,8 @@ validation_plan_proposal.json shape:
       "type": "smoke|unit|api|service|build|static|ui_static|ui_behavior|browser_e2e|e2e",
       "requirement_id": "REQ-...",
       "scheme_element_id": "...",
-      "description": "what this check proves",
+      "description": "what this check proves; mention secondary catalog methods when useful",
+      "test_method_id": "catalog method id such as backend.pytest.api.mutable-state, web.ui.static-anchors, or web.e2e.playwright.crud-list-search-flow",
       "validation_intent": "rerun_existing|extend_existing_test|create_new_test|rerun_behavior_test|extend_behavior_test|create_behavior_test; omit for non-file checks such as ui_static",
       "proposed_file": "relative/test/path or null"
     }

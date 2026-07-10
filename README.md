@@ -107,6 +107,10 @@ OpenCode может во время implementation/repair читать файл�
 
 Если после implementation уже упали file boundary или UI static checks, pipeline всё равно сначала запускает staged validation как диагностику перед repair. Это нужно, чтобы repair видел полный набор наблюдаемых проблем: boundary, ui_static, backend pytest, build и browser/e2e. Post-repair validation остаётся источником истины.
 
+Для снижения числа repair kit patterns фиксируют не демо-фиксы, а переносимые принципы first-pass generation: mutable/external state должен иметь явную тестовую seam, browser/e2e должен использовать scoped anchors и корректно ждать asynchronous UI state transitions, а detailed API edge cases должны оставаться в backend pytest. FastAPI dependency override, JSON temp storage и Playwright search/list flows — примеры для текущего kit-а, а не глобальные правила для всех будущих стеков.
+
+Способы тестирования теперь фиксируются в `instructions/testing/test-method-catalog.md`. Это список расширяемых методов, а не свободный выбор для каждого проекта: если сценарий совпадает с уже описанным методом, planner/implementation/repair должны использовать его. Сейчас каталог покрывает backend API pytest с mutable-state seam, service unit, smoke rerun, UI static anchors, Playwright CRUD/list/search, form submit, row/card actions, filtered list, async state transitions и count assertions.
+
 По умолчанию при `--allow-repair` pipeline допускает до двух repair-попыток (`--max-repair-attempts`, default `2`). Это нужно для случаев, где первый repair устраняет root failure backend/smoke/test, а после повторной validation остаётся уже независимая frontend/e2e ошибка. Такой цикл не заменяет validation: после каждой repair-попытки заново выполняются collect changes, UI static checks и staged validation.
 
 Перед каждой repair-попыткой pipeline пишет компактный `prototype/output/repair_context.json`. Это не новый валидатор, а диагностический handoff для агента: текущие boundary/ui_static/validation failures, root/downstream stages, хвосты validation logs, relevant workspace paths и краткая история предыдущих repair. Цель файла — помочь repair сделать рабочую точечную правку и вернуть управление pipeline, а не просто лучше объяснить failure.
@@ -119,7 +123,7 @@ OpenCode может во время implementation/repair читать файл�
 
 ## Repair как safety net
 
-Repair — нормальная страховочная фаза, но частые однотипные repair-срабатывания нужно переводить в kit-level инструкции и reference examples. Сейчас типовые причины repair: согласование API route/prefix с тестами, изоляция JSON mock storage в pytest, Playwright selectors, стабильность e2e test data и соответствие тестовых ожиданий фактической семантике требования.
+Repair — нормальная страховочная фаза, но частые однотипные repair-срабатывания нужно переводить в kit-level patterns/examples. При этом patterns должны оставаться переносимыми: формулировать общий принцип, а конкретный FastAPI/React/Playwright вариант держать как пример текущего kit-а. Сейчас типовые причины repair: согласование API route/prefix с тестами, тестовая подмена mutable state, Playwright selectors, стабильность e2e test data и соответствие тестовых ожиданий фактической семантике требования.
 
 Если repair внёс изменения, но агент не успел записать `repair_report.json`, pipeline может создать fallback-отчёт и продолжить post-repair проверки. Failed diagnostic tool calls во время repair также могут быть оставлены как warnings, если workspace изменился и OpenCode завершился успешно. Такой отчёт не заменяет содержательную диагностику агента; итоговым источником истины остаются `changed_files.json`, `validation_result.json` и post-repair validation.
 
@@ -606,7 +610,7 @@ Backend tests for JSON-backed prototypes should isolate storage via injection, r
 
 ## Kit implementation patterns
 
-For recurring implementation shapes, prefer kit-level patterns over adding more prompt rules. The react-python-json-browser kit provides `instructions/implementation-patterns.md` as an index from artifact types to focused patterns, for example FastAPI JSON CRUD and React browser CRUD/list/search flows. Patterns are guidance only: they do not override `file_plan.json` and do not grant permission to create extra files.
+For recurring implementation shapes, prefer kit-level patterns over adding more prompt rules. The react-python-json-browser kit provides `instructions/implementation-patterns.md` as an index from artifact types to focused patterns, for example FastAPI JSON CRUD and React browser CRUD/list/search flows. Patterns are guidance only: they do not override `file_plan.json` and do not grant permission to create extra files. Testing methods are cataloged separately in `instructions/testing/test-method-catalog.md`; add new reusable methods there instead of embedding one-off pytest/Playwright choices in prompts.
 
 
 

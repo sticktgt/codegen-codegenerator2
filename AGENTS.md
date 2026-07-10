@@ -164,6 +164,10 @@ OpenCode может запускать отдельные диагностиче
 
 Перед каждой repair-попыткой pipeline пишет `prototype/output/repair_context.json`. Агент должен читать его как компактный вход: там есть root/downstream failures, boundary/ui_static blockers, хвосты validation logs, relevant paths и краткая история предыдущих repair. Диагностика должна помогать получить рабочий код в рамках правил, а не только объяснить, почему текущий код не работает.
 
+First-pass generation should avoid common repair triggers by applying portable kit patterns: mutable/external state must be test-overridable, browser/e2e locators must be scoped and asynchronous APIs awaited, and UI assertions after async state transitions must wait for visible user state before derived count/absence checks. FastAPI dependency overrides and JSON temp storage are examples for this kit, not global rules for all stacks.
+
+Testing methods are cataloged in `prototype-kits/react-python-json-browser/instructions/testing/test-method-catalog.md`. Planner/implementation/repair should select from that catalog instead of inventing per-run testing styles when an existing method fits. Add new method entries there as the supported scenario set grows: backend API pytest, service unit tests, smoke reruns, UI static anchors, Playwright CRUD/list/search, form submit, row action, filtered list, async transition, and count assertions.
+
 `tools/run_opencode_phase.py` дополнительно выставляет неинтерактивные env-переменные и добавляет workspace-local shim для `npm`/`npx`/`playwright`, чтобы блокировать интерактивные Playwright режимы. Не переносить эту защиту в generated code и не считать shim частью prototype output.
 
 ## Правила доработки
@@ -228,7 +232,7 @@ Agent-run commands are diagnostics only; pipeline validation remains the source 
 
 ## Kit implementation patterns
 
-For recurring implementation shapes, prefer kit-level patterns over adding more prompt rules. The react-python-json-browser kit provides `instructions/implementation-patterns.md` as an index from artifact types to focused patterns, for example FastAPI JSON CRUD and React browser CRUD/list/search flows. Patterns are guidance only: they do not override `file_plan.json` and do not grant permission to create extra files.
+For recurring implementation shapes, prefer kit-level patterns over adding more prompt rules. The react-python-json-browser kit provides `instructions/implementation-patterns.md` as an index from artifact types to focused patterns, for example FastAPI JSON CRUD and React browser CRUD/list/search flows. Patterns are guidance only: they do not override `file_plan.json` and do not grant permission to create extra files. Test methods are part of those patterns: keep the method catalog authoritative and avoid duplicating long Playwright/pytest rules across prompts.
 
 
 
@@ -238,4 +242,4 @@ For recurring implementation shapes, prefer kit-level patterns over adding more 
 
 ### Browser/e2e scope
 
-Keep browser/e2e validation lean. For one coherent CRUD/list/search screen, prefer one compact Playwright spec linked to multiple requirements over many independent specs. Put edge cases and most negative cases in backend pytest unless the requirement is specifically about browser UI behavior. For create/edit UIs, avoid ambiguous Playwright selectors: distinguish the opener from the submitter, put scheme action anchors on the control that performs the action, and scope submit button locators inside the form.
+Keep browser/e2e validation lean. For one coherent CRUD/list/search screen, prefer one compact Playwright spec linked to multiple requirements over many independent specs. Put API edge cases and most negative cases in backend pytest unless the requirement is specifically about browser UI behavior. For create/edit UIs, distinguish opener controls from submitter actions, put scheme action anchors on the control that performs the action, and scope submit locators inside the form. After any async UI transition, wait for the expected visible state before count or absence assertions.

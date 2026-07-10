@@ -1,56 +1,49 @@
-# Example: backend pytest with isolated JSON storage
+# Example: FastAPI JSON storage pytest with isolated mutable state
 
-This is a reference pattern, not a mandatory implementation. Adapt names and injection points to the generated application.
+Use this example with catalog method `backend.pytest.api.mutable-state`.
 
-The important point is that the API route must use the same isolated service/storage that the test inspects. Do not rewrite implementation source files from a pytest fixture.
+Preferred FastAPI shape for this kit:
 
 ```python
-import json
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.notes import get_note_service
 from app.main import app
-from app.services.item_service import ItemService
-from app.api import items as items_module
+from app.services.note_service import NoteService
 
 
 @pytest.fixture
-def client_with_temp_storage(tmp_path, monkeypatch):
-    storage_file = tmp_path / "items.json"
-    storage_file.write_text("[]", encoding="utf-8")
+def client(tmp_path: Path):
+    storage_file = tmp_path / "notes.json"
+    storage_file.write_text('{"notes": []}', encoding="utf-8")
 
-    # Construct a fresh service using the temp storage for this test.
-    service = ItemService(storage_path=storage_file)
-
-    # Patch the dependency object actually used by the route module.
-    # If the generated app uses FastAPI dependencies, use app.dependency_overrides instead.
-    monkeypatch.setattr(items_module, "item_service", service)
-
-    # Create the client after patching dependencies when the app/route captures state.
-    client = TestClient(app)
-    return client, storage_file
+    app.dependency_overrides[get_note_service] = lambda: NoteService(storage_path=storage_file)
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
 
 
-def read_items(storage_file):
-    return json.loads(storage_file.read_text(encoding="utf-8"))
+def test_create_note(client: TestClient):
+    response = client.post("/api/notes", json={"title": "A", "content": "B"})
 
-
-def test_create_item(client_with_temp_storage):
-    client, storage_file = client_with_temp_storage
-
-    response = client.post("/items", json={"title": "Example"})
-
-    assert response.status_code in (200, 201)
-    assert read_items(storage_file)[0]["title"] == "Example"
+    assert response.status_code == 201
+    assert response.json()["title"] == "A"
 ```
 
-Key ideas:
+Fallback only when the implementation does not use FastAPI `Depends(...)`: patch the exact route-module object that endpoints call. Do not patch a helper or class that is no longer used by the endpoint, and do not rewrite implementation files from the test fixture.
 
-- Each test gets a fresh temp storage file.
-- The test injects the service/path before calling the API.
-- The assertion reads the same isolated storage used by the API.
-- No tracked mock JSON file is mutated.
-- No implementation `.py` file is rewritten by the test fixture.
-- If the generated service cannot accept `storage_path`, patch or construct the actual dependency used by the route module instead of assuming a path monkeypatch affects an already-created singleton.
-- If dependency injection is not possible, it is often better to repair the implementation to expose a small injection point than to make tests patch source files on disk.
+```python
+from app.api import notes as notes_api
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    service = NoteService(storage_path=tmp_path / "notes.json")
+    monkeypatch.setattr(notes_api, "note_service", service)
+    yield TestClient(app)
+```
+
+Smoke tests remain baseline import/health checks. Do not add feature CRUD/search assertions to `backend/tests/test_smoke.py`.

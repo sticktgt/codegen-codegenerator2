@@ -30,7 +30,7 @@ Canonical instruction paths:
 Rules:
 
 Pipeline phase output discipline:
-- The goal is working generated code that satisfies the rules, not just a better failure report. Diagnostics exist to choose the next targeted repair.
+- The goal is working generated code that satisfies the rules, not just a better failure report. Use the established testing methods from `instructions/testing/test-method-catalog.md`; do not invent a new local testing style when a catalog method matches the failure. Diagnostics exist to choose the next targeted repair.
 - Fix only validation failures and file-boundary violations for the current scenario/run input slice.
 - Treat file-boundary violations from `prototype/output/changed_files.json` as root repair targets. Before changing tests for validation failures, check `unexpected_files`, `policy_violations`, and `missing_required_*`; remove or revert unplanned files first, then keep the implementation using only planned paths. If an unexpected file duplicates a planned storage/mock file, delete the unexpected duplicate and update all references to the planned file.
 - If `run_input.json` is present, use it only as requirement context; do not infer extra writable files from it beyond file_plan.json.
@@ -41,8 +41,7 @@ Pipeline phase output discipline:
 - During repair, add browser/e2e dependencies or tasks only when file_plan.json explicitly allows the relevant package/task files to change. If frontend behavior validation needs a missing runner and those files are not writable, report the kit limitation.
 - Do not modify `frontend/package.json` merely to satisfy ad-hoc diagnostics such as raw Node ESM checks. Only change package/config files when the canonical validation failure genuinely requires it and file_plan.json allows it.
 - If tests changed tracked mock storage or runtime fixtures, repair the tests to use isolated temporary data or exact restoration; do not treat fixture mutation as an implementation change.
-- Do not repair backend test isolation by rewriting implementation source files from inside a pytest fixture. Instead patch or inject the actual dependency used by the route, construct an isolated service instance, use dependency overrides, or make an allowed implementation repair that exposes a clean injection point.
-- If test data accumulates across backend tests, ensure the fixture runs for every test and that each test request is served by the isolated service/storage for that test. Check for module-level service singletons and global TestClient/app objects that may have captured old dependencies.
+- For backend test isolation failures, follow `instructions/testing/backend-pytest.md`: each test must make API requests through the isolated dependency it prepared. Use an existing injection seam, or make an allowed implementation repair that exposes a small seam; do not rewrite implementation source files from pytest fixtures.
 - If validation failure appears to require a missing dependency, add it only when the package file is explicitly writable in file_plan.json; otherwise adjust unsupported generated tests to available dependencies or report the limitation.
 - If backend pytest fails because a generated test imported an unavailable plugin such as `pytest_asyncio`, either use the planned dependency change when package files are writable, or rewrite the test to available kit dependencies such as synchronous FastAPI `TestClient`.
 - Do not change scope or implement new requirements.
@@ -91,3 +90,15 @@ Validation repair note:
 - If Playwright e2e fails because a test reads `backend/app/storage/*.json` from the frontend working directory, repair the test to verify behavior through the UI or public API instead of reading private backend files.
 - If validation after repair fails because a previous browser run mutated local JSON mock storage, repair the behavior tests so mutating flows create and operate on runtime-unique test-owned records instead of seed records or fixed test titles.
 - If `ui_static` reports advisory browser/e2e hygiene warnings, use them as context only. Repair the browser/e2e test file when Playwright or validation output confirms the warning is connected to an actual failure.
+
+
+Common fast repairs to prefer over broad diagnostic loops:
+- Mutable-state test isolation: ensure API requests in tests use the isolated dependency prepared by the test fixture; add or use a small allowed provider/factory/injection seam rather than patching unrelated helpers.
+- Playwright async locator assertions: await locator async APIs before numeric assertions, for example `const count = await locator.count(); expect(count)...`.
+- Async UI transition races: after form submit, create/edit/delete, search/filter changes, or clearing inputs, wait for the expected visible row/card/form state before count or absence assertions.
+
+
+Repair reminders for tests:
+- Do not repair feature API failures by editing smoke tests. Use the feature test method and dependency seam selected by the catalog.
+- For Playwright repeated item actions, use a row/card locator first, then click the action inside that row/card. Avoid chained `>> text=... >>` selector strings.
+- After async UI transitions, wait for a positive visible state before count or absence assertions.
