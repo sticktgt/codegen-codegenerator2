@@ -11,6 +11,7 @@ from prototype_pipeline.phases.baseline import commit_plan_inputs, commit_synced
 from prototype_pipeline.phases.clean import clean_run
 from prototype_pipeline.phases.opencode import OpenCodeOptions, phase_args as opencode_phase_args
 from prototype_pipeline.phases.reports import copy_workspace_report_if_exists
+from prototype_pipeline.phases.repair_context import write_repair_context
 from prototype_pipeline.phases.prompt_sync import sync_prompt_snapshots
 from prototype_pipeline.phases.status import (
     boundary_failed as is_boundary_failed,
@@ -86,6 +87,7 @@ def main() -> None:
     parser.add_argument("--implementation-prompt-file", type=Path)
     parser.add_argument("--repair-prompt-file", type=Path)
     parser.add_argument("--allow-repair", action="store_true")
+    parser.add_argument("--max-repair-attempts", type=int, default=2, help="Maximum OpenCode repair attempts when --allow-repair is enabled")
     parser.add_argument("--skip-validation", action="store_true")
     parser.add_argument("--no-stream", action="store_true", help="Do not mirror OpenCode logs while phases are running")
     parser.add_argument("--model", help="Explicit OpenCode model for all OpenCode phases, e.g. ollama-cloud/qwen3-coder-next")
@@ -176,33 +178,46 @@ def main() -> None:
         call([py, "tools/collect_changes.py", "--run", str(args.run)], root=root, logger=logger, label="Collect changes")
         call(ui_check_args(py, args.run, args.strict_ui_checks), root=root, logger=logger, label="Run UI static checks", required=False)
 
-        repair_used = False
+        def run_diagnostics_validation(label: str) -> None:
+            if args.skip_validation:
+                ensure_validation_placeholder(args.run, "validation_skipped")
+                return
+            call([py, "tools/run_validation.py", "--run", str(args.run)], root=root, logger=logger, label=label, required=False)
+
+        def current_failures() -> tuple[bool, bool, bool]:
+            boundary = is_boundary_failed(args.run)
+            ui_static = is_ui_static_failed(args.run)
+            validation_path = args.run / "output" / "validation_result.json"
+            validation_data = read_json(validation_path) if validation_path.exists() else {"status": "not_run"}
+            validation = validation_data.get("status") == "failed"
+            return boundary, ui_static, validation
+
+        # Always collect validation diagnostics before entering repair. If boundary
+        # or ui_static already failed, validation is still useful context for repair;
+        # it is allowed to fail and post-repair validation remains the source of truth.
         boundary_has_failed = is_boundary_failed(args.run)
         ui_static_has_failed = is_ui_static_failed(args.run)
-        if boundary_has_failed or ui_static_has_failed:
-            if boundary_has_failed:
-                logger.log("File boundary failed after implementation")
-            if ui_static_has_failed:
-                logger.log("UI static checks failed after implementation")
-            ensure_validation_placeholder(args.run, "validation_not_run_before_pre_validation_repair")
-            if args.allow_repair and args.repair_prompt_file:
-                repair_used = True
-                call(phase_args("repair-001", args.repair_prompt_file), root=root, logger=logger, label="OpenCode repair-001")
-                call([py, "tools/collect_agent_reports.py", "--run", str(args.run)], root=root, logger=logger, label="Collect repair reports")
-                call([py, "tools/collect_changes.py", "--run", str(args.run)], root=root, logger=logger, label="Collect changes after repair")
-                call(ui_check_args(py, args.run, args.strict_ui_checks), root=root, logger=logger, label="Run UI static checks after repair", required=False)
+        if boundary_has_failed:
+            logger.log("File boundary failed after implementation")
+        if ui_static_has_failed:
+            logger.log("UI static checks failed after implementation")
+        run_diagnostics_validation("Run validation before repair" if (boundary_has_failed or ui_static_has_failed) else "Run validation")
 
-        if not args.skip_validation:
-            call([py, "tools/run_validation.py", "--run", str(args.run)], root=root, logger=logger, label="Run validation", required=False)
-
-        validation = read_json(args.run / "output" / "validation_result.json") if (args.run / "output" / "validation_result.json").exists() else {"status": "not_run"}
-        if args.allow_repair and validation.get("status") == "failed" and args.repair_prompt_file and not repair_used:
-            call(phase_args("repair-001", args.repair_prompt_file), root=root, logger=logger, label="OpenCode repair-001")
-            call([py, "tools/collect_agent_reports.py", "--run", str(args.run)], root=root, logger=logger, label="Collect repair reports")
-            call([py, "tools/collect_changes.py", "--run", str(args.run)], root=root, logger=logger, label="Collect changes after repair")
-            call(ui_check_args(py, args.run, args.strict_ui_checks), root=root, logger=logger, label="Run UI static checks after repair", required=False)
-            if not args.skip_validation:
-                call([py, "tools/run_validation.py", "--run", str(args.run)], root=root, logger=logger, label="Run validation after repair", required=False)
+        repair_attempts = max(0, int(args.max_repair_attempts or 0)) if args.allow_repair else 0
+        for attempt in range(1, repair_attempts + 1):
+            boundary_has_failed, ui_static_has_failed, validation_has_failed = current_failures()
+            if not (boundary_has_failed or ui_static_has_failed or validation_has_failed):
+                break
+            if not args.repair_prompt_file:
+                break
+            label = f"repair-{attempt:03d}"
+            repair_context_path = write_repair_context(args.run, attempt=attempt, max_attempts=repair_attempts)
+            logger.log(f"Repair context: {repair_context_path}")
+            call(phase_args(label, args.repair_prompt_file), root=root, logger=logger, label=f"OpenCode {label}")
+            call([py, "tools/collect_agent_reports.py", "--run", str(args.run)], root=root, logger=logger, label=f"Collect {label} reports")
+            call([py, "tools/collect_changes.py", "--run", str(args.run)], root=root, logger=logger, label=f"Collect changes after {label}")
+            call(ui_check_args(py, args.run, args.strict_ui_checks), root=root, logger=logger, label=f"Run UI static checks after {label}", required=False)
+            run_diagnostics_validation(f"Run validation after {label}")
 
         call([py, "tools/build_code_traceability.py", "--run", str(args.run)], root=root, logger=logger, label="Build traceability")
         call([py, "tools/collect_agent_reports.py", "--run", str(args.run)], root=root, logger=logger, label="Collect final agent reports")

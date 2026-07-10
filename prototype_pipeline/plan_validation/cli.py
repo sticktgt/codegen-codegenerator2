@@ -65,7 +65,7 @@ def _format_issue(item: dict) -> str:
     code = item.get("code") or "issue"
     message = item.get("message") or ""
     fields = []
-    for key in ["path", "field", "artifact_type", "scheme_element_id", "validation_check_id"]:
+    for key in ["path", "field", "artifact_type", "scheme_element_id", "validation_check_id", "requirement_id"]:
         value = item.get(key)
         if value is not None:
             fields.append(f"{key}={value}")

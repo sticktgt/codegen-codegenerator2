@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -26,11 +27,41 @@ def _log(message: str) -> None:
     print(f"[{_utc_now()}] {message}", flush=True)
 
 
-def _stream_pipe(pipe, log_file: Path, label: str, *, stream: bool) -> None:
+def _stream_pipe(
+    pipe,
+    log_file: Path,
+    label: str,
+    *,
+    stream: bool,
+    interactive_guard_event: threading.Event | None = None,
+    diagnostic_guard_event: threading.Event | None = None,
+    diagnostic_guard: DiagnosticCommandGuard | None = None,
+) -> None:
     with log_file.open("w", encoding="utf-8") as out:
         for line in iter(pipe.readline, ""):
             out.write(line)
             out.flush()
+            if interactive_guard_event is not None and INTERACTIVE_PLAYWRIGHT_COMMAND_RE.search(line):
+                interactive_guard_event.set()
+                guard_line = (
+                    "[pipeline-guard] blocked interactive Playwright diagnostic command; "
+                    "the OpenCode phase will hand control back to the pipeline for post-repair validation.\n"
+                )
+                out.write(guard_line)
+                out.flush()
+                if stream:
+                    sys.stdout.write(f"[{_utc_now()}] {label} | {guard_line}")
+                    sys.stdout.flush()
+            if diagnostic_guard_event is not None and diagnostic_guard is not None:
+                budget_message = diagnostic_guard.record_line(line)
+                if budget_message:
+                    diagnostic_guard_event.set()
+                    guard_line = f"[pipeline-guard] {budget_message}\n"
+                    out.write(guard_line)
+                    out.flush()
+                    if stream:
+                        sys.stdout.write(f"[{_utc_now()}] {label} | {guard_line}")
+                        sys.stdout.flush()
             if stream:
                 sys.stdout.write(f"[{_utc_now()}] {label} | {line}")
                 sys.stdout.flush()
@@ -143,7 +174,115 @@ def _detect_workspace_access_violations(workspace: Path, project_root: Path, run
     return violations
 
 
-def _run_opencode_streamed(prompt: str, *, cwd: Path, run: Path, project_root: Path, stdout_log: Path, stderr_log: Path, stream: bool, model: str | None = None) -> int:
+
+INTERACTIVE_PLAYWRIGHT_ARGS = {"--debug", "--ui", "--headed", "show-trace", "codegen"}
+INTERACTIVE_PLAYWRIGHT_COMMAND_RE = re.compile(
+    r"\$\s+.*(?:npx\s+playwright|npm\s+run\s+[^&|;]*playwright|playwright)\b.*(?:--debug|--ui|--headed|show-trace|codegen)",
+    re.IGNORECASE,
+)
+
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+DIAGNOSTIC_COMMAND_PATTERNS = {
+    "frontend_e2e": re.compile(r"\$\s+.*(?:npm\s+run\s+test:e2e|npx\s+playwright\s+test|\bplaywright\s+test\b)", re.IGNORECASE),
+    "backend_pytest": re.compile(r"\$\s+.*\bpytest\b", re.IGNORECASE),
+}
+DEFAULT_REPAIR_DIAGNOSTIC_COMMAND_LIMITS = {
+    # Repair should use existing pipeline diagnostics and make a targeted fix.
+    # The official post-repair validation runs immediately after the phase, so
+    # repeated full e2e/pytest cycles inside OpenCode mostly add time and can
+    # lead to local, overfit test rewrites.
+    "frontend_e2e": 2,
+    "backend_pytest": 3,
+}
+
+
+class DiagnosticCommandGuard:
+    def __init__(self, limits: dict[str, int]):
+        self.limits = limits
+        self.counts = {name: 0 for name in limits}
+        self.violations: list[dict[str, str]] = []
+        self._triggered = False
+        self._lock = threading.Lock()
+
+    def record_line(self, line: str) -> str | None:
+        plain = ANSI_ESCAPE_RE.sub("", line).strip()
+        if not plain.startswith("$"):
+            return None
+        with self._lock:
+            for kind, pattern in DIAGNOSTIC_COMMAND_PATTERNS.items():
+                if kind not in self.limits or not pattern.search(plain):
+                    continue
+                self.counts[kind] += 1
+                if self.counts[kind] <= self.limits[kind] or self._triggered:
+                    return None
+                self._triggered = True
+                message = (
+                    f"diagnostic command budget exceeded for {kind}: "
+                    f"{self.counts[kind]} > {self.limits[kind]}; "
+                    "the OpenCode phase will hand control back to the pipeline and official post-phase validation should decide the result."
+                )
+                self.violations.append({
+                    "kind": kind,
+                    "count": str(self.counts[kind]),
+                    "limit": str(self.limits[kind]),
+                    "command": plain,
+                    "message": message,
+                })
+                return message
+        return None
+
+    @property
+    def triggered(self) -> bool:
+        with self._lock:
+            return self._triggered
+
+
+def _prepare_opencode_tool_shims(workspace: Path) -> Path:
+    """Create workspace-local wrappers that block interactive Playwright diagnostics.
+
+    OpenCode occasionally tries `npx playwright test --debug` or
+    `npx playwright show-trace` during repair. Those commands open browser
+    windows / inspectors and can hang an automated pipeline. The wrappers are
+    intentionally workspace-local and ignored by git, so they do not affect the
+    generated prototype boundary.
+    """
+    shim_dir = workspace / ".opencode-shims"
+    shim_dir.mkdir(parents=True, exist_ok=True)
+    shim_template = """#!/usr/bin/env bash
+set -euo pipefail
+for arg in "$@"; do
+  case "$arg" in
+    --debug|--ui|--headed|show-trace|codegen)
+      echo "Blocked interactive Playwright diagnostic argument: $arg" >&2
+      echo "Use non-interactive diagnostics only; the pipeline runs official validation after the phase." >&2
+      exit 65
+      ;;
+  esac
+done
+exec "__REAL_TOOL__" "$@"
+"""
+    for tool_name in ("npm", "npx", "playwright"):
+        real_tool = shutil.which(tool_name)
+        if not real_tool:
+            continue
+        shim = shim_dir / tool_name
+        shim.write_text(shim_template.replace("__REAL_TOOL__", real_tool), encoding="utf-8")
+        shim.chmod(0o755)
+    return shim_dir
+
+
+def _run_opencode_streamed(
+    prompt: str,
+    *,
+    cwd: Path,
+    run: Path,
+    project_root: Path,
+    stdout_log: Path,
+    stderr_log: Path,
+    stream: bool,
+    model: str | None = None,
+    diagnostic_command_limits: dict[str, int] | None = None,
+) -> tuple[int, bool, bool, list[dict[str, str]]]:
     cwd = cwd.resolve()
     run = run.resolve()
     project_root = project_root.resolve()
@@ -158,12 +297,19 @@ def _run_opencode_streamed(prompt: str, *, cwd: Path, run: Path, project_root: P
         f"Invalid path pattern: {project_root / 'prototype'} (root scratch area; do not use it as current run input/output).\n"
         "Do not construct absolute paths by dropping '/workspace' from the workspace root.\n"
         "Do not use sibling runs, baselines, samples, .venv, node_modules, or build output as sources for the current run.\n"
-        "Use prototype/input/architecture-contract.yaml for architecture rules when it exists.\n\n"
+        "Use prototype/input/architecture-contract.yaml for architecture rules when it exists.\n"
+        "Do not run interactive Playwright diagnostics such as --debug, --ui, --headed, codegen, or show-trace.\n\n"
     )
     command = ["opencode", "run"]
     if model:
         command.extend(["--model", model])
     command.append(prompt_prefix + prompt)
+    env = os.environ.copy()
+    env.setdefault("CI", "1")
+    env["PWDEBUG"] = "0"
+    env.setdefault("PLAYWRIGHT_HEADLESS", "1")
+    shim_dir = _prepare_opencode_tool_shims(cwd)
+    env["PATH"] = f"{shim_dir}{os.pathsep}{env.get('PATH', '')}"
     process = subprocess.Popen(
         command,
         cwd=str(cwd),
@@ -171,18 +317,48 @@ def _run_opencode_streamed(prompt: str, *, cwd: Path, run: Path, project_root: P
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         bufsize=1,
+        env=env,
     )
     assert process.stdout is not None
     assert process.stderr is not None
-    stdout_thread = threading.Thread(target=_stream_pipe, args=(process.stdout, stdout_log, "opencode:stdout"), kwargs={"stream": stream})
-    stderr_thread = threading.Thread(target=_stream_pipe, args=(process.stderr, stderr_log, "opencode:stderr"), kwargs={"stream": stream})
+    interactive_guard_event = threading.Event()
+    diagnostic_guard_event = threading.Event()
+    diagnostic_guard = DiagnosticCommandGuard(diagnostic_command_limits) if diagnostic_command_limits else None
+    stdout_thread = threading.Thread(
+        target=_stream_pipe,
+        args=(process.stdout, stdout_log, "opencode:stdout"),
+        kwargs={
+            "stream": stream,
+            "interactive_guard_event": interactive_guard_event,
+            "diagnostic_guard_event": diagnostic_guard_event,
+            "diagnostic_guard": diagnostic_guard,
+        },
+    )
+    stderr_thread = threading.Thread(
+        target=_stream_pipe,
+        args=(process.stderr, stderr_log, "opencode:stderr"),
+        kwargs={
+            "stream": stream,
+            "interactive_guard_event": interactive_guard_event,
+            "diagnostic_guard_event": diagnostic_guard_event,
+            "diagnostic_guard": diagnostic_guard,
+        },
+    )
     stdout_thread.start()
     stderr_thread.start()
+    while process.poll() is None:
+        if interactive_guard_event.is_set() or diagnostic_guard_event.is_set():
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            break
+        time.sleep(0.1)
     returncode = process.wait()
     stdout_thread.join()
     stderr_thread.join()
-    return returncode
-
+    return returncode, interactive_guard_event.is_set(), diagnostic_guard_event.is_set(), (diagnostic_guard.violations if diagnostic_guard else [])
 
 
 
@@ -295,7 +471,7 @@ def main() -> None:
 
     started = time.time()
     project_root = Path(__file__).resolve().parents[1]
-    returncode = _run_opencode_streamed(
+    returncode, interactive_guard_triggered, diagnostic_command_guard_triggered, diagnostic_command_violations = _run_opencode_streamed(
         prompt,
         cwd=workspace,
         run=args.run,
@@ -304,6 +480,7 @@ def main() -> None:
         stderr_log=stderr_log,
         stream=not args.no_stream,
         model=args.model,
+        diagnostic_command_limits=DEFAULT_REPAIR_DIAGNOSTIC_COMMAND_LIMITS if phase.startswith("repair-") else None,
     )
     duration = time.time() - started
     ended_at = _utc_now()
@@ -314,21 +491,40 @@ def main() -> None:
     tool_failures = _detect_failed_tool_calls(stdout_log, stderr_log)
     workspace_access_violations = _detect_workspace_access_violations(workspace, project_root, args.run, stdout_log, stderr_log)
     hard_workspace_violations = [item for item in workspace_access_violations if item.get("reason") == "project_file_outside_workspace"]
+    has_workspace_changes = _workspace_has_git_changes(workspace)
+    handoff_guard_triggered = interactive_guard_triggered or diagnostic_command_guard_triggered
+    completion_mode = "normal"
+    if phase.startswith("repair-") and has_workspace_changes and handoff_guard_triggered:
+        completion_mode = "guarded_handoff"
+    returncode_ok = returncode == 0 or (
+        phase.startswith("repair-")
+        and has_workspace_changes
+        and handoff_guard_triggered
+    )
+    tolerated_tool_failures: list[dict[str, str]] = []
+    hard_tool_failures = tool_failures
+    if phase.startswith("repair-") and returncode_ok and has_workspace_changes and tool_failures:
+        # Repair is validated by the pipeline immediately after the phase.
+        # Treat failed diagnostic/read/permission tool calls as warnings when
+        # the agent produced workspace changes; post-repair boundary checks and
+        # validation decide whether those changes are acceptable.
+        tolerated_tool_failures = tool_failures
+        hard_tool_failures = []
     missing_expected_outputs = _missing_expected_outputs(workspace, phase)
     auto_created_expected_outputs: list[str] = []
     if (
         phase.startswith("repair-")
-        and returncode == 0
+        and returncode_ok
         and "repair_report.json" in missing_expected_outputs
-        and _workspace_has_git_changes(workspace)
+        and has_workspace_changes
     ):
         _write_fallback_repair_report(workspace, phase, stdout_log, stderr_log)
         auto_created_expected_outputs.append("repair_report.json")
         missing_expected_outputs = _missing_expected_outputs(workspace, phase)
 
     status = "passed" if (
-        returncode == 0
-        and not tool_failures
+        returncode_ok
+        and not hard_tool_failures
         and not missing_expected_outputs
         and not (args.fail_on_workspace_leak and hard_workspace_violations)
     ) else "failed"
@@ -336,6 +532,11 @@ def main() -> None:
         "status": status,
         "phase": phase,
         "returncode": returncode,
+        "completion_mode": completion_mode,
+        "handoff_to_pipeline": completion_mode == "guarded_handoff",
+        "interactive_playwright_guard_triggered": interactive_guard_triggered,
+        "diagnostic_command_guard_triggered": diagnostic_command_guard_triggered,
+        "diagnostic_command_violations": diagnostic_command_violations,
         "started_at": started_at,
         "ended_at": ended_at,
         "duration_seconds": round(duration, 3),
@@ -343,13 +544,16 @@ def main() -> None:
         "stdout_log": str(stdout_log),
         "stderr_log": str(stderr_log),
         "usage_delta": str(delta_path.relative_to(args.run)),
-        "tool_failures": tool_failures,
+        "tool_failures": hard_tool_failures,
+        "tolerated_tool_failures": tolerated_tool_failures,
         "workspace_access_violations": workspace_access_violations,
         "missing_expected_outputs": missing_expected_outputs,
         "auto_created_expected_outputs": auto_created_expected_outputs,
     }
     failure_reasons = []
-    if tool_failures:
+    if returncode != 0 and not returncode_ok:
+        failure_reasons.append("opencode_returncode_nonzero")
+    if hard_tool_failures:
         failure_reasons.append("failed_tool_calls_detected")
     if missing_expected_outputs:
         failure_reasons.append("missing_expected_phase_outputs")
@@ -359,15 +563,23 @@ def main() -> None:
         result_payload["failure_reason"] = ",".join(failure_reasons)
     write_json(output_dir / f"opencode_{phase}_result.json", result_payload)
     _log(f"OpenCode phase '{phase}' {status} in {duration:.1f}s")
-    if tool_failures:
-        _log(f"OpenCode phase '{phase}' failed: detected {len(tool_failures)} failed tool call(s)")
+    if hard_tool_failures:
+        _log(f"OpenCode phase '{phase}' failed: detected {len(hard_tool_failures)} failed tool call(s)")
+    if interactive_guard_triggered:
+        _log(f"OpenCode phase '{phase}' handed off after an interactive Playwright diagnostic command")
+    if diagnostic_command_guard_triggered:
+        _log(f"OpenCode phase '{phase}' handed off after repeated expensive diagnostic command(s)")
+    if completion_mode == "guarded_handoff":
+        _log(f"OpenCode phase '{phase}' returned control to the pipeline; official post-repair checks remain authoritative")
+    if tolerated_tool_failures:
+        _log(f"OpenCode phase '{phase}' tolerated {len(tolerated_tool_failures)} failed diagnostic tool call(s); post-repair validation remains authoritative")
     if auto_created_expected_outputs:
         _log(f"OpenCode phase '{phase}' auto-created fallback output(s): {', '.join(auto_created_expected_outputs)}")
     if missing_expected_outputs:
         _log(f"OpenCode phase '{phase}' failed: missing expected workspace output(s): {', '.join(missing_expected_outputs)}")
     if workspace_access_violations:
         _log(f"OpenCode phase '{phase}' workspace access warnings: {len(workspace_access_violations)}")
-    if returncode != 0 or tool_failures or missing_expected_outputs or (args.fail_on_workspace_leak and hard_workspace_violations):
+    if status != "passed":
         raise SystemExit(returncode or 2)
 
 

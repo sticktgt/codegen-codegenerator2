@@ -44,7 +44,7 @@ Rules:
   - Use `source: "resolved_by_planner"` for existing elements you inferred from requirements, scheme_model, traceability, or code.
 - If the slice extends existing behavior, preserve already accepted behavior by default. Prefer adding a wrapper, UI state, or new artifact over repurposing an existing artifact with a stable responsibility.
 - If a new scheme action is implemented inside an existing screen rather than a dedicated action file, list it in `design_delta.proposed_new_elements` with `implementation_mode: "screen_internal"` and `owning_artifact`. Also include that action id in the owning screen file-plan item `scheme_elements` so UI anchor checks can validate it.
-- For simple React CRUD/list/search screens, prefer screen-internal UI actions when the button/form handler is rendered directly by the screen. Do not create dedicated frontend action files just for naming symmetry.
+- For simple React CRUD/list/search screens, prefer screen-internal UI actions when the button/form handler is rendered directly by the screen. Do not create dedicated frontend action files just for naming symmetry. In the planned screen file item, include the `action.*` ids rendered by the screen so ui_static can validate the anchors.
 - If a new scheme action is implemented by a dedicated file, list it with `implementation_mode: "separate_artifact"` and `artifact` or `planned_artifact`, and the path must follow `generation-rules.yaml` exactly: `frontend/src/actions/{PascalName}.js` such as `CreateNote.js`, not kebab-case or lowercase variants.
 - Do not repurpose an existing action/API/service artifact unless the requirement explicitly asks to replace the old behavior. If you must modify an existing artifact, explain why reuse/wrapping is insufficient in `design_delta.preservation_decisions`.
 - If tests are needed, propose validation checks in validation_plan_proposal.json; do not create them yet.
@@ -62,7 +62,10 @@ Rules:
 - Browser/e2e UI behavior tests are optional kit capabilities. If `architecture-contract.yaml` has `validation_capabilities.frontend_behavior.enabled: true` and the kit exposes an executable frontend behavior validation task, propose `ui_behavior`, `browser_e2e`, or `e2e` checks for changed UI behavior acceptance criteria.
 - Use `validation_intent: "create_behavior_test"`, `"extend_behavior_test"`, or `"rerun_behavior_test"` only for frontend behavior checks and only when the frontend_behavior capability is enabled and executable.
 - If frontend_behavior is disabled, do not propose browser/e2e test files; use `ui_static` anchors plus relevant existing regression tests and record the missing browser behavior coverage as a kit limitation or assumption.
-- If frontend_behavior is enabled and executable, changed UI behavior acceptance criteria should have both non-file `ui_static` anchor checks and an executable browser/e2e behavior check with `validation_intent: "create_behavior_test"`, `"extend_behavior_test"`, or `"rerun_behavior_test"`.
+- If frontend_behavior is enabled and executable, changed UI behavior acceptance criteria should have non-file `ui_static` anchor checks and at least one executable browser/e2e behavior check with `validation_intent: "create_behavior_test"`, `"extend_behavior_test"`, or `"rerun_behavior_test"`.
+- Keep browser/e2e planning lean. For one coherent CRUD/list/search screen, prefer one compact spec file that covers the main user journey and can be linked to multiple requirement ids through multiple validation checks. Do not create a separate browser spec for every requirement unless the requirements are genuinely independent screens or flows.
+- Backend/API tests should carry most edge cases and negative cases. Browser/e2e should prove representative user-visible happy paths and the most important integration behavior, not exhaustively retest every backend branch.
+- Avoid empty-state, case-insensitive-search, and other state-sensitive browser checks unless the test controls the dataset through public API/setup or an isolated fixture. For persistent JSON-backed prototypes, such checks are often flaky across validation reruns and repair loops.
 - Validation tests should normally use dependencies already present in the baseline kit. New test dependencies are allowed only when the plan explicitly includes the relevant package/config file change and a short rationale.
 - If the requirement is ambiguous, make a conservative planner decision that preserves existing behavior. Do not ask the analyst implementation-design questions about internal file responsibilities.
 
@@ -157,7 +160,8 @@ Planner-output discipline:
 - Every new scheme element referenced by `file_plan_draft` or `validation_plan_proposal` must appear in `design_delta.proposed_new_elements`.
 - New scheme element ids must not appear in `resolved_existing_elements`, even if they are mentioned by validation checks or anchored inside an existing screen.
 - Existing element ids already present in `scheme_model.json` should not appear in `proposed_new_elements`.
-- A screen-internal action may have no dedicated file, but it still needs a proposed_new_elements entry with `implementation_mode: "screen_internal"` and `owning_artifact`.
+- A screen-internal action may have no dedicated file, but it still needs a design_delta entry with `implementation_mode: "screen_internal"` and `owning_artifact` pointing to the owning file path or owning screen element id.
+- If a screen file implements screen-internal actions, include those action ids in the screen file's `scheme_elements` and include the related requirement ids on the screen file when you can.
 - Do not include files in the file plan merely to satisfy naming symmetry. File creation must follow the actual architecture decision.
 - For confirmation flows, prefer a working minimal plan: preserve the existing destructive action and implement Confirm/Cancel as screen-internal if separate files are not needed.
 
@@ -176,4 +180,12 @@ Browser kit rule:
 - This kit variant enables executable `frontend_behavior` validation.
 - When a slice changes user-visible UI behavior, propose at least one browser/e2e behavior check (`ui_behavior`, `browser_e2e`, or `e2e`) in addition to `ui_static` checks.
 - For a new behavior test, use `validation_intent: "create_behavior_test"` and a `proposed_file` under `frontend/e2e/` or `frontend/tests/e2e/`.
+- A single compact browser spec may cover multiple related requirements; represent coverage with separate validation checks if needed.
 - Browser behavior tests should exercise the actual running frontend through Playwright and may use the existing backend API through the Vite proxy.
+
+
+- Requirement coverage rules:
+  - Every requirement id in `implementation_slice.requirements` must appear in at least one planned implementation file and at least one validation check.
+  - Coverage may be direct (`requirement_id`/`requirements`) or through a referenced scheme element whose scheme-model requirements include that id.
+  - For screen-internal actions, the owning screen file is the implementation file for that action requirement; make that relationship explicit through `scheme_elements` and/or `design_delta.owning_artifact`.
+  - Do not cover primary requirements only implicitly through a broad check under a different requirement id.

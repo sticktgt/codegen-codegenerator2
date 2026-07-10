@@ -1,13 +1,10 @@
-Changed files:
 codegenerator2/AGENTS.md
 codegenerator2/README.md
-codegenerator2/prototype-kits/react-python-json-browser/prompts/implementation_prompt.md
+codegenerator2/prototype_pipeline/cli/run_pipeline.py
+codegenerator2/prototype_pipeline/phases/repair_context.py
+codegenerator2/tools/run_opencode_phase.py
+codegenerator2/prototype-kits/react-python-json-browser/prompts/plan_prompt.md
 codegenerator2/prototype-kits/react-python-json-browser/prompts/repair_prompt.md
-
-New files:
-codegenerator2/prototype-kits/react-python-json-browser/instructions/implementation-patterns.md
 codegenerator2/prototype-kits/react-python-json-browser/instructions/patterns/backend-fastapi-json-crud.md
 codegenerator2/prototype-kits/react-python-json-browser/instructions/patterns/frontend-react-json-crud.md
-
-Deleted files:
-(none)
+codegenerator2/prototype-kits/react-python-json-browser/instructions/testing/browser-e2e.md

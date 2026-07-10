@@ -48,6 +48,7 @@ Check:
 - For preserved existing behavior, does the validation plan prefer `rerun_existing` before modifying or creating tests?
 - If the plan proposes `extend_existing_test` or `create_new_test`, is there a clear acceptance-criteria gap that existing tests do not cover?
 - If the slice changes UI behavior and `frontend_behavior` is enabled, does the validation plan include an executable browser/e2e behavior check with a behavior validation intent and a proposed file under an allowed e2e root?
+- Is browser/e2e coverage lean for the slice? For one coherent CRUD/list/search screen, prefer one compact browser spec linked to multiple requirements; warn if the plan creates many independent browser specs or browser tests for edge cases that backend pytest should cover.
 - If `frontend_behavior` is disabled, does the plan avoid unsupported browser/e2e test files and make the limitation explicit while still requiring `ui_static` checks?
 - If formal plan validation already passed, do not block solely because design_delta metadata could be cleaner; warn and allow implementation when the file plan is safe.
 
@@ -63,6 +64,7 @@ Review guidance:
 - Do not block a safe implementation plan just because validation could be cleaner; prefer a warning unless the validation plan is non-executable or misleading.
 - A `ui_static` check is not a test file. If it has `proposed_file: null`, it should normally omit `validation_intent`; if the planner accidentally used a test-file intent for `ui_static`, warn but do not block when other validation is executable.
 - Browser/e2e UI behavior coverage is required only when the kit declares the `frontend_behavior` capability enabled and executable. When disabled, missing browser/e2e coverage is a warning/limitation, not a blocker, if `ui_static` and relevant regressions are present. When enabled and executable, missing browser/e2e coverage for changed UI acceptance criteria should be treated as a blocker or strong warning depending on whether implementation would otherwise be unverifiable.
+- Excessive browser/e2e scope is normally a warning, not a blocker, when requirement coverage is still explicit. Recommend consolidating related UI behavior checks into one compact spec and moving API edge cases to backend pytest.
 - Treat repurposing an existing API/action/service artifact as a blocker unless the requirement explicitly asks to replace the old behavior.
 - For a confirmation flow around an existing destructive action, prefer preserving the existing destructive action and adding confirmation UI/state or a wrapper action.
 - It is acceptable for a cancel/confirm action to be screen-internal if it only manages local UI flow or invokes an existing action; in that case the design_delta should say so explicitly and the screen file must carry the relevant scheme element for UI anchor validation.
@@ -90,3 +92,6 @@ Final action requirement:
 - Use the file write tool to create or overwrite `prototype/output/plan_review.json` with valid JSON exactly matching the schema above.
 - After writing the file, you may provide a short textual summary.
 - Never provide only a textual review without writing `prototype/output/plan_review.json`.
+
+
+Also review requirement coverage: every requirement in `implementation_slice.requirements` must appear in implementation files and validation checks.

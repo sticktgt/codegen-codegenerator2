@@ -108,6 +108,8 @@ Browser kit rule:
 - This kit variant enables executable `frontend_behavior` validation.
 - When a slice changes user-visible UI behavior, propose at least one browser/e2e behavior check (`ui_behavior`, `browser_e2e`, or `e2e`) in addition to `ui_static` checks.
 - For a new behavior test, use `validation_intent: "create_behavior_test"` and a `proposed_file` under `frontend/e2e/` or `frontend/tests/e2e/`.
+- A single browser spec file may cover multiple related requirements. Use separate validation check objects with different `requirement_id` values when one spec proves multiple UI acceptance criteria.
+- Keep browser/e2e validation lean. It should prove representative user-visible flows; backend pytest should cover API edge cases and most negative cases.
 - Browser behavior tests should exercise the actual running frontend through Playwright and may use the existing backend API through the Vite proxy.
 - Detailed browser test writing rules are in `instructions/testing/browser-e2e.md`; load them when creating or repairing browser/e2e tests.
 

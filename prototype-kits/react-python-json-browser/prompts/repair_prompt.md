@@ -1,6 +1,7 @@
 Repair validation failures or file-boundary failures for the current slice.
 
 Read:
+- prototype/output/repair_context.json, if present; use it as the compact repair entry point
 - prototype/output/changed_files.json, if present
 - prototype/output/validation_result.json, if present
 - prototype/output/ui_static_check_result.json, if present
@@ -29,6 +30,7 @@ Canonical instruction paths:
 Rules:
 
 Pipeline phase output discipline:
+- The goal is working generated code that satisfies the rules, not just a better failure report. Diagnostics exist to choose the next targeted repair.
 - Fix only validation failures and file-boundary violations for the current scenario/run input slice.
 - Treat file-boundary violations from `prototype/output/changed_files.json` as root repair targets. Before changing tests for validation failures, check `unexpected_files`, `policy_violations`, and `missing_required_*`; remove or revert unplanned files first, then keep the implementation using only planned paths. If an unexpected file duplicates a planned storage/mock file, delete the unexpected duplicate and update all references to the planned file.
 - If `run_input.json` is present, use it only as requirement context; do not infer extra writable files from it beyond file_plan.json.
@@ -53,10 +55,13 @@ File operation discipline:
 - Use Write for intentional full-file replacement of empty or whitespace-only files; never call Edit with an empty `oldString`.
 - Use Edit only when modifying an existing file and you have the exact old text to replace.
 - Do not run the full validation suite from OpenCode repair. Do not run `tools/run_validation.py` from repair. The pipeline runs official validation after repair and remains the source of truth.
+- Treat repair as one controlled attempt inside a pipeline repair loop: use `prototype/output/repair_context.json` and validation logs, make one coherent targeted change set, write `repair_report.json`, then hand control back to the pipeline. If more failures remain and repair attempts are available, the next repair will receive a refreshed `repair_context.json`.
 - Use `prototype/output/validation_result.json`, `prototype/output/validation.stdout.log`, `prototype/output/validation.stderr.log`, and the already-collected failure snippets to diagnose the repair. If `validation_result.json` contains `stages` or `failed_stages`, review every failed stage before editing.
 - Prioritize validation failures by dependency order. If `root_failed_stages` is present, repair those first. If a failed stage has `blocked_by_failed_stages` or appears under `downstream_failed_stages`, treat it as secondary context until the upstream stage is fixed. Do not change frontend/e2e code merely because browser tests fail while backend smoke/pytest or frontend build is failing, unless the browser failure is clearly independent (for example, a selector strict-mode error unrelated to backend data/API availability).
 - If the failure matches a kit implementation pattern, use that pattern to repair the implementation/test shape instead of adding another one-off workaround.
-- If a focused diagnostic is truly needed, run only a narrow command directly related to the changed file, such as one backend pytest file or a syntax check for Python files; avoid full install/build/e2e cycles from inside repair.
+- If a focused diagnostic is truly needed, run only a narrow command directly related to the changed file, such as one backend pytest file, a syntax check for Python files, or at most one focused Playwright invocation for the exact failing spec. Avoid full install/build/e2e cycles from inside repair.
+- Do not repeatedly run expensive diagnostics such as `npm run test:e2e` or broad `pytest` loops inside repair. Use the already captured validation logs, make a targeted change, optionally run one narrow check, and let the pipeline's official post-repair validation decide the result. If the runner hands control back because the diagnostic budget was exceeded, that is not success by itself; it means the pipeline will validate the current changes and, if needed, run the next repair attempt with updated context.
+- Do not repeatedly reset or rewrite planned mock storage data merely to make a browser run pass locally. Repair the service/test isolation or browser flow so validation is repeatable.
 - Do not use `node --check` on `.jsx` files or Playwright spec files. JSX and Playwright ESM syntax are validated by `npm run build` and `npm run test:e2e`.
 
 - `prototype/output/repair_report.json` is an output of this repair phase and normally does not exist at phase start. Do not read it as an input before writing it.
@@ -71,6 +76,7 @@ Architecture contract requirement:
 Workspace path discipline:
 - Treat the current working directory as the workspace root.
 - Read and write `prototype/input/...` and `prototype/output/...` relative to the workspace root.
+- Source files listed in `changed_files.json`, `ui_static_check_result.json`, and validation logs are workspace-root paths such as `frontend/src/...` or `backend/app/...`; do not prefix them with `prototype/output/`.
 - Never use `/runs/<run-name>/prototype/...`; the valid path is `/runs/<run-name>/workspace/prototype/...` when an absolute path is unavoidable.
 - Do not read from run-level `input/` or `output/` unless the prompt explicitly asks for a diagnostics-only fallback.
 

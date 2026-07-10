@@ -52,7 +52,20 @@ def _load_trace_plan(run: Path) -> dict[str, Any]:
         raise SystemExit(f"Missing required file plan for traceability: {file_plan_path}")
     file_plan = read_json(file_plan_path)
     texts = _requirements_by_id(run)
+    primary_requirement_ids = _slice_requirement_ids(run)
     by_req: dict[str, dict[str, Any]] = {}
+
+    # Seed traceability from the implementation slice, not only from file_plan.
+    # Otherwise a bad plan can silently omit a primary requirement and still
+    # produce a green traceability report for the remaining subset.
+    for req_id in sorted(primary_requirement_ids):
+        by_req.setdefault(req_id, {
+            "requirement_id": req_id,
+            "text": texts.get(req_id),
+            "scheme_elements": [],
+            "allowed_files": [],
+        })
+
     for item in file_plan.get("allowed_files", []):
         for req_id in item.get("requirements", []) or []:
             by_req.setdefault(req_id, {

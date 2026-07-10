@@ -9,6 +9,7 @@ Use this pattern for small JSON-backed backend features with API, service, model
 - Use only the planned mock/storage JSON filename. If the plan lists `backend/app/storage/notes_json_mock.json`, do not also create `notes_mock.json` or any other alias/seed file.
 - Keep JSON helpers in the planned storage module/package. They should create parent directories when saving and return a known empty shape when the file is missing or empty.
 - Pick one JSON shape and keep it consistent, for example `{ "notes": [] }` for a notes collection or `[]` for a generic item list. Tests, service, and seed data must use the same shape.
+- Pick one in-memory representation per service method and keep it consistent. If `get_all_notes()` returns Pydantic `Note` objects, update/delete/search code must use object attributes such as `note.id`, and save with `note.model_dump(mode="json")`; do not later treat those objects as dictionaries like `note["id"]`. If the service works with dictionaries internally, convert to Pydantic models only at API boundaries.
 - Serialize Pydantic models with JSON-compatible values before writing to disk. For Pydantic v2, use `model_dump(mode="json")` when the model contains datetime, UUID, or other non-primitive values.
 - Avoid module-level mutable state that makes tests share records between cases. A module-level route service is acceptable only if tests can replace the route module's service object with an isolated instance.
 

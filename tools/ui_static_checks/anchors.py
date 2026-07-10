@@ -6,17 +6,48 @@ from typing import Any
 from .plan import requirements, scheme_elements
 
 
+_ANCHOR_LITERAL_PREFIXES = ("screen.", "widget.", "action.", "control.", "item.")
+_JSX_EXPRESSION_ATTR_RE_TEMPLATE = r"\b{attr}\s*=\s*\{{(?P<expr>[^}}]+)\}}"
+_STRING_LITERAL_RE = re.compile(r"(['\"])(?P<value>[^'\"]+)\1")
+
+
 def has_anchor(text: str, attr: str) -> bool:
     return bool(re.search(rf"\b{re.escape(attr)}\s*=", text))
 
 
 def anchor_counts_for(text: str, attr: str) -> dict[str, int]:
-    pattern = re.compile(rf"\b{re.escape(attr)}\s*=\s*['\"]([^'\"]+)['\"]")
+    """Return stable UI anchors found in JSX.
+
+    Direct JSX attributes such as ``data-prototype-id="screen.note-list"`` are
+    counted normally. The checker also recognises simple JSX expressions whose
+    alternatives are literal prototype ids, for example::
+
+        data-prototype-id={editing ? 'action.edit-note' : 'action.create-note'}
+
+    This is still statically knowable and useful for create/edit forms that use
+    one submit control in two modes. Arbitrary variables such as
+    ``data-prototype-id={dataPrototypeId}`` are intentionally ignored.
+    """
     counts: dict[str, int] = {}
-    for match in pattern.finditer(text):
-        anchor = match.group(1)
-        counts[anchor] = counts.get(anchor, 0) + 1
+    literal_pattern = re.compile(rf"\b{re.escape(attr)}\s*=\s*['\"]([^'\"]+)['\"]")
+    for match in literal_pattern.finditer(text):
+        _add_anchor_count(counts, match.group(1))
+
+    expression_pattern = re.compile(
+        _JSX_EXPRESSION_ATTR_RE_TEMPLATE.format(attr=re.escape(attr)),
+        re.DOTALL,
+    )
+    for match in expression_pattern.finditer(text):
+        expression = match.group("expr")
+        for literal in _STRING_LITERAL_RE.finditer(expression):
+            _add_anchor_count(counts, literal.group("value"))
     return counts
+
+
+def _add_anchor_count(counts: dict[str, int], anchor: str) -> None:
+    if not anchor.startswith(_ANCHOR_LITERAL_PREFIXES):
+        return
+    counts[anchor] = counts.get(anchor, 0) + 1
 
 
 def collect_item_context(
@@ -95,6 +126,10 @@ def build_ui_anchor_findings(
         "anchors": anchors,
     }
 
+    root_anchors = required_root_anchors(items)
+    action_anchors = required_action_anchors(items)
+    required_direct = root_anchors | action_anchors
+
     if not has_anchor(text, attr):
         warning = {
             "code": "missing_ui_anchor",
@@ -106,9 +141,6 @@ def build_ui_anchor_findings(
         _add_finding(warning, mode, warnings, blockers)
         return checked_entry, warnings, blockers
 
-    root_anchors = required_root_anchors(items)
-    action_anchors = required_action_anchors(items)
-    required_direct = root_anchors | action_anchors
     duplicate_root_anchors = {
         anchor: count
         for anchor, count in anchor_counts.items()
@@ -132,7 +164,6 @@ def build_ui_anchor_findings(
             ),
         }
         _add_finding(warning, mode, warnings, blockers)
-        return checked_entry, warnings, blockers
 
     missing_action_anchors = sorted(action_anchors - anchor_set)
     if missing_action_anchors:
@@ -146,11 +177,11 @@ def build_ui_anchor_findings(
             "missing_anchors": missing_action_anchors,
             "message": (
                 "Changed UI file is missing action anchors it directly owns in file_plan: "
-                f"{', '.join(missing_action_anchors)}."
+                f"{', '.join(missing_action_anchors)}. Static literal alternatives inside JSX expressions are accepted; "
+                "arbitrary variable-driven anchors are not."
             ),
         }
         _add_finding(warning, mode, warnings, blockers)
-        return checked_entry, warnings, blockers
 
     missing_root_anchors = sorted(root_anchors - anchor_set)
     if missing_root_anchors:
@@ -168,6 +199,8 @@ def build_ui_anchor_findings(
             ),
         }
         _add_finding(warning, mode, warnings, blockers)
+
+    if blockers:
         return checked_entry, warnings, blockers
 
     relevant_scheme_set = set(context["relevant_scheme_elements"])

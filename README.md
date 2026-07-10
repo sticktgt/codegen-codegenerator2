@@ -103,7 +103,15 @@ Python pipeline не должен:
 - **Vite build** — frontend build validation.
 - **Playwright** — browser/e2e validation.
 
-OpenCode может во время implementation/repair читать файлы и запускать отдельные диагностические команды, если это нужно для работы агента. Эти действия не являются официальным validation stage. Официальный результат validation определяется только pipeline-этапом `Run validation`, который запускает `tools/run_validation.py`. Для `validate` скрипт выполняет стадии validation последовательно (`install`, `smoke`, `test`, `build`, `frontend-behavior`) и собирает их в один `validation_result.json`, не останавливаясь на первом backend failure. При этом downstream failures помечаются зависимостями: если backend smoke/pytest или frontend build уже упали, browser/e2e failures являются диагностическим контекстом, а не обязательной первичной причиной repair.
+OpenCode может во время implementation/repair читать файлы и запускать отдельные диагностические команды, если это нужно для работы агента. Эти действия не являются официальным validation stage и должны быть неинтерактивными: без Playwright `--debug`, `--ui`, `codegen`, `show-trace` и headed mode. Официальный результат validation определяется только pipeline-этапом `Run validation`, который запускает `tools/run_validation.py`. Для `validate` скрипт выполняет стадии validation последовательно (`install`, `smoke`, `test`, `build`, `frontend-behavior`) и собирает их в один `validation_result.json`, не останавливаясь на первом backend failure. При этом downstream failures помечаются зависимостями: если backend smoke/pytest или frontend build уже упали, browser/e2e failures являются диагностическим контекстом, а не обязательной первичной причиной repair.
+
+Если после implementation уже упали file boundary или UI static checks, pipeline всё равно сначала запускает staged validation как диагностику перед repair. Это нужно, чтобы repair видел полный набор наблюдаемых проблем: boundary, ui_static, backend pytest, build и browser/e2e. Post-repair validation остаётся источником истины.
+
+По умолчанию при `--allow-repair` pipeline допускает до двух repair-попыток (`--max-repair-attempts`, default `2`). Это нужно для случаев, где первый repair устраняет root failure backend/smoke/test, а после повторной validation остаётся уже независимая frontend/e2e ошибка. Такой цикл не заменяет validation: после каждой repair-попытки заново выполняются collect changes, UI static checks и staged validation.
+
+Перед каждой repair-попыткой pipeline пишет компактный `prototype/output/repair_context.json`. Это не новый валидатор, а диагностический handoff для агента: текущие boundary/ui_static/validation failures, root/downstream stages, хвосты validation logs, relevant workspace paths и краткая история предыдущих repair. Цель файла — помочь repair сделать рабочую точечную правку и вернуть управление pipeline, а не просто лучше объяснить failure.
+
+Для защиты от случайных интерактивных Playwright diagnostics pipeline дополнительно запускает OpenCode phases с `CI=1`, `PWDEBUG=0`, `PLAYWRIGHT_HEADLESS=1` и временным workspace-local shim для `npm`/`npx`/`playwright`, который блокирует `--debug`, `--ui`, `--headed`, `codegen` и `show-trace`. Это инфраструктурная защита, а не часть generated prototype.
 
 ## Отчётные артефакты фаз
 
@@ -113,7 +121,9 @@ OpenCode может во время implementation/repair читать файл�
 
 Repair — нормальная страховочная фаза, но частые однотипные repair-срабатывания нужно переводить в kit-level инструкции и reference examples. Сейчас типовые причины repair: согласование API route/prefix с тестами, изоляция JSON mock storage в pytest, Playwright selectors, стабильность e2e test data и соответствие тестовых ожиданий фактической семантике требования.
 
-Если repair внёс изменения, но агент не успел записать `repair_report.json`, pipeline может создать fallback-отчёт и продолжить post-repair проверки. Такой отчёт не заменяет содержательную диагностику агента; итоговым источником истины остаются `changed_files.json`, `validation_result.json` и post-repair validation.
+Если repair внёс изменения, но агент не успел записать `repair_report.json`, pipeline может создать fallback-отчёт и продолжить post-repair проверки. Failed diagnostic tool calls во время repair также могут быть оставлены как warnings, если workspace изменился и OpenCode завершился успешно. Такой отчёт не заменяет содержательную диагностику агента; итоговым источником истины остаются `changed_files.json`, `validation_result.json` и post-repair validation.
+
+Внутри repair действует бюджет на дорогие диагностические команды: повторные `npm run test:e2e` / `playwright test` и широкие `pytest`-циклы могут быть остановлены runner-ом. Если repair уже изменил workspace, это трактуется как controlled handoff, а не как окончательная неудача: phase завершается с `completion_mode: guarded_handoff`, pipeline собирает изменения и запускает официальные post-repair checks. Если они всё ещё падают и попытки остались, следующая repair-попытка получит обновленный `repair_context.json`.
 
 Не надо закрывать эти случаи растущим набором Python-запретов. Python-checker должен оставаться на уровне контрактных инвариантов: границы файлов, forbidden paths, dependency boundary, обязательные отчёты, грубые UI anchor инварианты.
 
@@ -382,7 +392,7 @@ task install
 - `task build` — запускает frontend build.
 - `task frontend-behavior` — запускает Playwright browser/e2e tests.
 
-Pipeline дополнительно выполняет `ui_static` до `task validate`. `ui_static` — это не e2e-тест, а статическая проверка, что созданные/измененные UI-файлы содержат нужные `data-prototype-id` anchors для scheme elements, напрямую назначенных этому файлу в `file_plan.json`. Screen-файл должен нести свой `screen.*` anchor и anchors для action-контролов, которые он реально рендерит; widget-файл не обязан нести чужие action anchors, если его file-plan item содержит только `widget.*`.
+Pipeline дополнительно выполняет `ui_static` до `task validate`. `ui_static` — это не e2e-тест, а статическая проверка, что созданные/измененные UI-файлы содержат нужные `data-prototype-id` anchors для scheme elements, напрямую назначенных этому файлу в `file_plan.json`. Screen-файл должен нести свой `screen.*` anchor и anchors для action-контролов, которые он реально рендерит; widget-файл не обязан нести чужие action anchors, если его file-plan item содержит только `widget.*`. Checker собирает все найденные blockers по файлу за один проход; для action anchors он учитывает как прямые literal attributes, так и простые JSX literal alternatives вроде `data-prototype-id={editing ? 'action.edit-note' : 'action.create-note'}`. Переменные вида `data-prototype-id={someVariable}` не засчитываются как стабильные anchors.
 
 ## Запуск с нуля после clone/переноса проекта
 
@@ -490,6 +500,7 @@ python3 tools/run_pipeline.py \
 - `--model` — модель OpenCode.
 - `--plan-prompt-file`, `--review-prompt-file`, `--implementation-prompt-file`, `--repair-prompt-file` — snapshots prompt-ов в run-директории.
 - `--allow-repair` — разрешить repair phase при repairable failure.
+- `--max-repair-attempts` — максимальное число repair-попыток при `--allow-repair`; по умолчанию `2`, чтобы второй repair мог устранить ошибки, проявившиеся после исправления root failure.
 
 ## Browser/e2e setup
 
@@ -589,7 +600,7 @@ OpenCode may run small diagnostic commands while implementing or repairing a sli
 
 ### OpenCode self-check limits
 
-Full validation is owned by the pipeline. `tools/run_validation.py` records per-stage results for install, smoke, backend pytest, frontend build, and browser/e2e, and restores semantic workspace files between stages so tests do not leak JSON mock-storage mutations into later checks. OpenCode phases may use focused diagnostics, but they should not call `tools/run_validation.py` or run broad install/build/e2e loops from inside implementation or repair. This keeps repair shorter and prevents duplicate validation from being interpreted as a separate source of truth.
+Full validation is owned by the pipeline. `tools/run_validation.py` records per-stage results for install, smoke, backend pytest, frontend build, and browser/e2e, and restores semantic workspace files between stages so tests do not leak JSON mock-storage mutations or accidentally created semantic files into later checks. OpenCode phases may use focused non-interactive diagnostics, but they should not call `tools/run_validation.py`, run broad install/build/e2e loops from inside implementation or repair, or use Playwright `--debug` / UI / headed modes. This keeps repair shorter and prevents duplicate validation from being interpreted as a separate source of truth.
 
 Backend tests for JSON-backed prototypes should isolate storage via injection, route-module dependency replacement, dependency overrides, or small app/service factories. They should not rewrite implementation source files from pytest fixtures.
 
@@ -597,3 +608,14 @@ Backend tests for JSON-backed prototypes should isolate storage via injection, r
 
 For recurring implementation shapes, prefer kit-level patterns over adding more prompt rules. The react-python-json-browser kit provides `instructions/implementation-patterns.md` as an index from artifact types to focused patterns, for example FastAPI JSON CRUD and React browser CRUD/list/search flows. Patterns are guidance only: they do not override `file_plan.json` and do not grant permission to create extra files.
 
+
+
+## Контроль покрытия требований
+
+Валидация плана проверяет покрытие первичных требований. Каждый id из `implementation_slice.requirements` должен быть связан хотя бы с одним planned implementation file и хотя бы с одной validation check. Это не даёт получить зелёный запуск, в котором одно из требований молча исчезло из traceability. При этом coverage может выводиться не только из прямого `requirement_id` в file plan, но и из `scheme_model`: если файл реализует scheme element или владеет `screen_internal` action через `design_delta.owning_artifact`, связанные requirement ids учитываются как покрытые этим файлом.
+
+### Browser/e2e validation scope
+
+Для browser-enabled kit e2e-проверки нужны, но они должны оставаться компактными. Для одного связного CRUD/list/search экрана предпочтителен один небольшой Playwright spec, который покрывает основной пользовательский путь и может быть связан с несколькими requirements через validation plan. Backend pytest должен покрывать API edge cases и большинство негативных сценариев. Это снижает количество repair-циклов и flaky-поведение из-за общего JSON-backed состояния между browser-тестами.
+
+Для create/edit экранов важно различать кнопку, которая открывает форму, и кнопку, которая действительно отправляет форму. `action.create-*` лучше ставить на submit-контрол, а opener делать отдельным auxiliary control (`control.open-create-*`) или явно отличать accessible name. Playwright-тесты должны scope-ить submit button внутри формы, а не использовать page-wide `getByRole('button', { name: 'Create' })`, который может совпасть и с opener, и с submit.

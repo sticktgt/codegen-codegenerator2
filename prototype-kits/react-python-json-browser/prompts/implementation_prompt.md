@@ -102,6 +102,7 @@ UI implementation requirement:
 - For every created or modified frontend widget file whose file-plan item contains a `widget.*` scheme element, ensure the widget root/outermost JSX element has `data-prototype-id` with that exact `widget.*` id, for example `data-prototype-id="widget.note-count-summary"`.
 - Use each direct `screen.*` or `widget.*` root anchor only once per source file. Do not repeat the same screen/widget anchor on nested headings, wrappers, labels, or controls; browser tests may locate these anchors in strict mode.
 - Anchor obligations are scoped to the current file-plan item: do not add unrelated action anchors to a widget just because the same requirement also uses actions in a screen. Put action anchors on the actual UI controls that implement those actions, usually in the screen or component that renders the buttons/form controls.
+- Use exact scheme ids for action anchors. Do not create suffixed variants such as `action.create-note-submit`; if a button changes between create/edit modes, use static literal alternatives such as `data-prototype-id={editing ? 'action.edit-note' : 'action.create-note'}` or separate conditional buttons with literal anchors.
 - If the UI control, screen, or widget cannot reasonably have an anchor, document the deviation in `implementation_report.json`; do not silently omit it.
 
 Workspace path discipline:

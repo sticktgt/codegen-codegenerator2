@@ -150,13 +150,21 @@ runs/                        Runtime-директории запусков; в g
 - `plan-review` — OpenCode, пишет `plan_review.json`.
 - `implementation` — OpenCode, меняет только файлы из `file_plan.json`.
 - `collect_changes.py` — Python, проверяет git diff против `file_plan.json`.
-- `run_ui_static_checks.py` — Python, проверяет `data-prototype-id` anchors по прямым `scheme_elements` каждого измененного UI-файла из `file_plan.json`.
+- `run_ui_static_checks.py` — Python, проверяет `data-prototype-id` anchors по прямым `scheme_elements` каждого измененного UI-файла из `file_plan.json`. Checker должен собирать все blockers за один проход и считать стабильными только literal anchors: прямые JSX attributes или простые JSX literal alternatives, например `editing ? 'action.edit-note' : 'action.create-note'`.
 - `run_validation.py` — thin Python CLI wrapper for validation; staged execution, reporting, and workspace restore live under `tools/validation_runner/`.
 - `repair` — OpenCode, только при repairable failure и `--allow-repair`.
 - `build_code_traceability.py` — Python, строит traceability.
 - `scenario_result.py` — Python, собирает отчетный контракт.
 
-OpenCode может запускать отдельные диагностические команды во время implementation/repair, но официальный validation status задает только pipeline stage `Run validation`.
+OpenCode может запускать отдельные диагностические команды во время implementation/repair, но официальный validation status задает только pipeline stage `Run validation`. Диагностика должна быть неинтерактивной: не использовать Playwright `--debug`, `--ui`, `codegen`, `show-trace` или headed mode.
+
+Во время repair не запускать повторные широкие diagnostic loops. Runner может остановить фазу, если агент многократно запускает дорогие команды вроде `npm run test:e2e`, `playwright test` или широкие `pytest`-циклы. Если workspace уже изменён, это controlled handoff: pipeline выполнит collect_changes, UI static и validation, а не потеряет попытку как простую ошибку. Делайте точечную правку по уже собранным логам и доверяйте post-repair validation.
+
+Если после implementation упали boundary или UI static checks, pipeline перед repair всё равно запускает staged validation как диагностический сбор. Repair должен видеть все уже наблюдаемые failures, а не чинить только первый слой ошибок. При `--allow-repair` pipeline по умолчанию допускает две repair-попытки (`--max-repair-attempts=2`): первая может устранить root backend/test failure, вторая — независимые ошибки, которые остались после повторной validation.
+
+Перед каждой repair-попыткой pipeline пишет `prototype/output/repair_context.json`. Агент должен читать его как компактный вход: там есть root/downstream failures, boundary/ui_static blockers, хвосты validation logs, relevant paths и краткая история предыдущих repair. Диагностика должна помогать получить рабочий код в рамках правил, а не только объяснить, почему текущий код не работает.
+
+`tools/run_opencode_phase.py` дополнительно выставляет неинтерактивные env-переменные и добавляет workspace-local shim для `npm`/`npx`/`playwright`, чтобы блокировать интерактивные Playwright режимы. Не переносить эту защиту в generated code и не считать shim частью prototype output.
 
 ## Правила доработки
 
@@ -178,7 +186,7 @@ OpenCode может запускать отдельные диагностиче
 
 Repair пока часто чинит не архитектуру, а тестовый harness и согласование тестов с реализацией: API prefix/routes, изоляцию JSON mock storage, Playwright selectors, runtime-unique e2e data и неверные ожидания тестов. Повторяющиеся случаи лучше переводить в kit instructions/examples, а не в новые Python-checker blockers.
 
-Если repair внёс изменения, но агент не записал `repair_report.json`, pipeline может создать fallback-отчёт и всё равно выполнить post-repair проверки. Такой fallback нужен только для устойчивости pipeline; содержательная оценка идёт по изменениям и результатам validation.
+Если repair внёс изменения, но агент не записал `repair_report.json`, pipeline может создать fallback-отчёт и всё равно выполнить post-repair проверки. Если repair внёс изменения, failed diagnostic tool calls также могут быть оставлены как warnings, чтобы post-repair boundary/validation стали источником истины. Такой fallback нужен только для устойчивости pipeline; содержательная оценка идёт по изменениям и результатам validation.
 
 ## Проверка после изменений
 
@@ -216,9 +224,18 @@ Agent-run commands are diagnostics only; pipeline validation remains the source 
 
 ## Staged validation
 
-`tools/run_validation.py` owns canonical validation. For the `validate` task it runs install, smoke, backend pytest, frontend build, and browser/e2e as separate stages, records `stages` / `failed_stages` in `validation_result.json`, and restores semantic workspace files between stages so runtime JSON mock-data mutations do not contaminate later checks. It also marks downstream failures with `blocked_by_failed_stages`, `root_failed_stages`, and `downstream_failed_stages`; repair should prioritize root failed stages first and treat downstream browser/e2e failures as context while upstream backend/build failures remain unresolved. OpenCode repair should read all failed stages but should not call `tools/run_validation.py` itself.
+`tools/run_validation.py` owns canonical validation. For the `validate` task it runs install, smoke, backend pytest, frontend build, and browser/e2e as separate stages, records `stages` / `failed_stages` in `validation_result.json`, and restores semantic workspace files between stages so runtime JSON mock-data mutations and accidentally created semantic files do not contaminate later checks. It also marks downstream failures with `blocked_by_failed_stages`, `root_failed_stages`, and `downstream_failed_stages`; repair should prioritize root failed stages first and treat downstream browser/e2e failures as context while upstream backend/build failures remain unresolved. OpenCode repair should read all failed stages but should not call `tools/run_validation.py` itself.
 
 ## Kit implementation patterns
 
 For recurring implementation shapes, prefer kit-level patterns over adding more prompt rules. The react-python-json-browser kit provides `instructions/implementation-patterns.md` as an index from artifact types to focused patterns, for example FastAPI JSON CRUD and React browser CRUD/list/search flows. Patterns are guidance only: they do not override `file_plan.json` and do not grant permission to create extra files.
 
+
+
+## Контроль покрытия требований
+
+Валидация плана проверяет покрытие первичных требований. Каждый id из `implementation_slice.requirements` должен быть связан хотя бы с одним planned implementation file и хотя бы с одной validation check. Это не даёт получить зелёный запуск, в котором одно из требований молча исчезло из traceability. Coverage может быть прямым или выводиться из `scheme_model` и `screen_internal` ownership: если screen file владеет action через `design_delta.owning_artifact`, этот file покрывает requirement action-а.
+
+### Browser/e2e scope
+
+Keep browser/e2e validation lean. For one coherent CRUD/list/search screen, prefer one compact Playwright spec linked to multiple requirements over many independent specs. Put edge cases and most negative cases in backend pytest unless the requirement is specifically about browser UI behavior. For create/edit UIs, avoid ambiguous Playwright selectors: distinguish the opener from the submitter, put scheme action anchors on the control that performs the action, and scope submit button locators inside the form.
