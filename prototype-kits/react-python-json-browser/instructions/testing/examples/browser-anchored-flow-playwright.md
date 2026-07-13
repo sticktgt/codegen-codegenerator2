@@ -20,11 +20,13 @@ test('user can create, edit, list, and search records', async ({ page }) => {
 
   // Open the form through an auxiliary control. This is not the create action.
   await page.getByTestId('control.open-create-note').click();
-  const form = page.locator('form').filter({ has: page.getByTestId('action.create-note') });
+  const form = page.getByTestId('form.note').filter({ has: page.getByTestId('action.create-note') });
   await expect(form).toBeVisible();
-  await form.getByLabel('Title').fill(runtimeTitle);
-  await form.getByLabel('Content').fill(runtimeBody);
+  await form.getByTestId('field.note-title').fill(runtimeTitle);
+  await form.getByTestId('field.note-content').fill(runtimeBody);
   await form.getByTestId('action.create-note').click();
+  // Do not assert that the form closes unless the requirement says it must.
+  // The success signal is the created row/card becoming visible.
 
   const createdRow = page.getByTestId('item.note').filter({ hasText: runtimeTitle });
   await expect(createdRow).toBeVisible();
@@ -32,9 +34,9 @@ test('user can create, edit, list, and search records', async ({ page }) => {
 
   // For repeated rows/cards, scope the action inside the row.
   await createdRow.getByTestId('action.edit-note').click();
-  const editForm = page.locator('form').filter({ has: page.getByTestId('action.edit-note') });
+  const editForm = page.getByTestId('form.note').filter({ has: page.getByTestId('action.edit-note') });
   await expect(editForm).toBeVisible();
-  await editForm.getByLabel('Title').fill(updatedTitle);
+  await editForm.getByTestId('field.note-title').fill(updatedTitle);
   await editForm.getByTestId('action.edit-note').click();
 
   const updatedRow = page.getByTestId('item.note').filter({ hasText: updatedTitle });
@@ -62,4 +64,20 @@ Instead locate the row first and click the action inside it:
 ```js
 const row = page.getByTestId('item.note').filter({ hasText: runtimeTitle });
 await row.getByTestId('action.edit-note').click();
+```
+
+
+Avoid using optional form disappearance as a generic success wait:
+
+```js
+await form.getByTestId('action.create-note').click();
+await expect(form).not.toBeVisible(); // Wrong unless closing the form is required behavior.
+```
+
+Prefer the requested domain outcome:
+
+```js
+await form.getByTestId('action.create-note').click();
+const createdRow = page.getByTestId('item.note').filter({ hasText: runtimeTitle });
+await expect(createdRow).toBeVisible();
 ```

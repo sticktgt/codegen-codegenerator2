@@ -17,6 +17,16 @@ from prototype_pipeline.plan_validation.policies import (
 from prototype_pipeline.plan_validation.utils import as_list
 
 
+KNOWN_EMPTY_SKELETON_PATHS = {
+    "backend/app/__init__.py",
+    "backend/app/api/__init__.py",
+    "backend/app/models/__init__.py",
+    "backend/app/services/__init__.py",
+    "backend/app/storage/__init__.py",
+    "backend/tests/__init__.py",
+}
+
+
 def validate_and_normalize_entries(
     run: Path,
     entries: list[dict[str, Any]],
@@ -46,6 +56,7 @@ def validate_and_normalize_entries(
             blockers.append(path_blocker)
             continue
 
+        policy, operation = _coerce_empty_skeleton_create_to_modify(workspace, path, policy, operation, warnings)
         artifact_type = _resolve_artifact_type(entry, path, contract, warnings)
         _validate_artifact_type(path, artifact_type, artifact_types, contract, operation, blockers, warnings)
         _validate_path_state(workspace, path, policy, blockers, warnings)
@@ -54,6 +65,51 @@ def validate_and_normalize_entries(
         item = _normalized_item(entry, path, policy, operation, artifact_type)
         _merge_or_append(normalized, seen_paths, item)
     return normalized, blockers, warnings
+
+
+def _coerce_empty_skeleton_create_to_modify(
+    workspace: Path,
+    path: str,
+    policy: str,
+    operation: str,
+    warnings: list[dict[str, Any]],
+) -> tuple[str, str]:
+    """Treat known empty kit skeleton files as writable skeletons, not create blockers.
+
+    This is intentionally not a generic "empty file" heuristic. It applies only
+    to committed bootstrap files declared by this kit, such as package
+    ``__init__.py`` files that exist so imports and directories are present in
+    the template. The planner should still mark existing files as ``modify``;
+    this guard merely prevents a false create blocker for known empty skeletons.
+
+    Non-empty files, unknown empty files, protected baseline files, and generated
+    semantic artifacts still fail ``create_path_already_exists`` when planned as
+    ``must_create``.
+    """
+    if policy != "must_create" or operation != "create":
+        return policy, operation
+    normalized = path.replace("\\", "/")
+    if normalized not in KNOWN_EMPTY_SKELETON_PATHS:
+        return policy, operation
+    target = workspace / normalized
+    if not target.exists() or not target.is_file():
+        return policy, operation
+    try:
+        content = target.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return policy, operation
+    if content.strip():
+        return policy, operation
+    warnings.append({
+        "code": "known_empty_skeleton_create_coerced_to_modify",
+        "path": normalized,
+        "message": (
+            "The planner proposed creating a known empty kit skeleton file. "
+            "The promoted file plan treats it as a modify operation so implementation fills the bootstrap placeholder. "
+            "This guard is limited to known kit skeleton paths; existing non-empty or unknown files remain create blockers."
+        ),
+    })
+    return "must_modify", "modify"
 
 
 def _path_blocker(path: str, roots: tuple[str, ...], forbidden_prefixes: tuple[str, ...], forbidden_exact: set[str]) -> dict[str, Any] | None:

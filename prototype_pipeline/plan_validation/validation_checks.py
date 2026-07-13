@@ -14,6 +14,20 @@ from prototype_pipeline.plan_validation.contract import (
 from prototype_pipeline.plan_validation.utils import as_list
 
 
+KNOWN_TEST_METHOD_IDS = {
+    "backend.pytest.api.mutable-state",
+    "backend.pytest.service.unit",
+    "backend.smoke.import-health",
+    "web.ui.static-anchors",
+    "web.e2e.playwright.crud-list-search-flow",
+    "web.e2e.playwright.form-submit-flow",
+    "web.e2e.playwright.item-action-flow",
+    "web.e2e.playwright.async-state-transition",
+    "web.e2e.playwright.filtered-list-flow",
+    "web.e2e.playwright.count-assertion",
+}
+
+
 def extract_validation_file_entries(
     validation_plan: dict[str, Any],
     workspace: Path,
@@ -32,6 +46,7 @@ def extract_validation_file_entries(
             continue
         proposed_file = check.get("proposed_file")
         check_type = str(check.get("type") or "").lower()
+        _warn_for_test_method_id(check, check_type, warnings)
         capability = capability_for_check(check_type, contract)
         capability_enabled = True if capability is None else bool(capability.get("enabled", True))
         if not proposed_file:
@@ -99,6 +114,48 @@ def validation_scheme_element_ids(validation_plan: dict[str, Any] | None) -> set
                 if value:
                     result.add(str(value))
     return result
+
+
+def _warn_for_test_method_id(check: dict[str, Any], check_type: str, warnings: list[dict[str, Any]]) -> None:
+    """Warn when validation checks do not reference the kit test-method catalog.
+
+    The catalog is intentionally advisory: missing/unknown ids should not block
+    a run that can still produce working code. The warning gives the planner and
+    reviewer a stable hook for improving first-pass generation without turning
+    method selection into a heavy Python validator.
+    """
+    method_id = str(check.get("test_method_id") or "").strip()
+    check_id = check.get("id")
+    method_relevant_types = {
+        "api",
+        "service",
+        "unit",
+        "integration",
+        "e2e",
+        "browser_e2e",
+        "ui_behavior",
+        "ui_unit",
+        "component",
+        "ui_static",
+    }
+    if check_type not in method_relevant_types:
+        return
+    if not method_id:
+        warnings.append({
+            "code": "validation_check_missing_test_method_id",
+            "check_id": check_id,
+            "check_type": check.get("type"),
+            "message": "Validation checks should reference instructions/testing/test-method-catalog.md via test_method_id.",
+        })
+        return
+    if method_id not in KNOWN_TEST_METHOD_IDS:
+        warnings.append({
+            "code": "validation_check_unknown_test_method_id",
+            "check_id": check_id,
+            "check_type": check.get("type"),
+            "test_method_id": method_id,
+            "message": "test_method_id is not listed in instructions/testing/test-method-catalog.md for this kit.",
+        })
 
 
 def _frontend_test_supported(workspace: Path) -> bool:
@@ -205,6 +262,7 @@ def _entry_for_check(
         "validation_check_id": check.get("id"),
         "validation_check_type": check.get("type"),
         "validation_intent": validation_intent,
+        "test_method_id": check.get("test_method_id"),
         "executable_validation": True,
     }
 

@@ -1,0 +1,21 @@
+{
+  "data_sources": [
+    {
+      "id": "mock.tasks-json",
+      "type": "mock",
+      "name": "Tasks JSON",
+      "format": "json",
+      "status": "generated",
+      "scheme_elements": [
+        "mock.tasks-json",
+        "data.task"
+      ],
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    }
+  ]
+}

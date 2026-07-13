@@ -75,6 +75,7 @@ Python pipeline отвечает за:
 Python pipeline не должен:
 
 - придумывать имена новых feature-файлов или тестов;
+- заменять kit-level test method contracts частными эвристиками;
 - исправлять `artifact_type`, если модель выбрала неверный архитектурный слой;
 - превращать `create` в `modify` по содержательному смыслу плана;
 - добавлять скрытые архитектурные исключения под конкретный ответ модели;
@@ -166,7 +167,7 @@ OpenCode может запускать отдельные диагностиче
 
 First-pass generation should avoid common repair triggers by applying portable kit patterns: mutable/external state must be test-overridable, browser/e2e locators must be scoped and asynchronous APIs awaited, and UI assertions after async state transitions must wait for visible user state before derived count/absence checks. FastAPI dependency overrides and JSON temp storage are examples for this kit, not global rules for all stacks.
 
-Testing methods are cataloged in `prototype-kits/react-python-json-browser/instructions/testing/test-method-catalog.md`. Planner/implementation/repair should select from that catalog instead of inventing per-run testing styles when an existing method fits. Add new method entries there as the supported scenario set grows: backend API pytest, service unit tests, smoke reruns, UI static anchors, Playwright CRUD/list/search, form submit, row action, filtered list, async transition, and count assertions.
+Testing methods are cataloged in `prototype-kits/react-python-json-browser/instructions/testing/test-method-catalog.md`. Planner/implementation/repair should select from that catalog instead of inventing per-run testing styles when an existing method fits. For the current FastAPI+JSON kit, the mutable-state API method is a concrete contract: generated routes use a provider/dependency seam and pytest uses dependency overrides with temp storage. Add new method entries there as the supported scenario set grows: backend API pytest, service unit tests, smoke reruns, UI static anchors, Playwright CRUD/list/search, form submit, row action, filtered list, async transition, and count assertions.
 
 `tools/run_opencode_phase.py` дополнительно выставляет неинтерактивные env-переменные и добавляет workspace-local shim для `npm`/`npx`/`playwright`, чтобы блокировать интерактивные Playwright режимы. Не переносить эту защиту в generated code и не считать shim частью prototype output.
 
@@ -232,7 +233,7 @@ Agent-run commands are diagnostics only; pipeline validation remains the source 
 
 ## Kit implementation patterns
 
-For recurring implementation shapes, prefer kit-level patterns over adding more prompt rules. The react-python-json-browser kit provides `instructions/implementation-patterns.md` as an index from artifact types to focused patterns, for example FastAPI JSON CRUD and React browser CRUD/list/search flows. Patterns are guidance only: they do not override `file_plan.json` and do not grant permission to create extra files. Test methods are part of those patterns: keep the method catalog authoritative and avoid duplicating long Playwright/pytest rules across prompts.
+For recurring implementation shapes, prefer kit-level patterns over adding more prompt rules. The react-python-json-browser kit provides `instructions/implementation-patterns.md` as an index from artifact types to focused patterns, for example FastAPI JSON CRUD and React browser CRUD/list/search flows. Patterns are guidance only: they do not override `file_plan.json` and do not grant permission to create extra files. Test methods are part of those patterns: keep the method catalog authoritative and avoid duplicating long Playwright/pytest rules across prompts. Prompts may contain short reminders, but the reusable method contract belongs in the catalog/examples.
 
 
 
@@ -243,3 +244,25 @@ For recurring implementation shapes, prefer kit-level patterns over adding more 
 ### Browser/e2e scope
 
 Keep browser/e2e validation lean. For one coherent CRUD/list/search screen, prefer one compact Playwright spec linked to multiple requirements over many independent specs. Put API edge cases and most negative cases in backend pytest unless the requirement is specifically about browser UI behavior. For create/edit UIs, distinguish opener controls from submitter actions, put scheme action anchors on the control that performs the action, and scope submit locators inside the form. After any async UI transition, wait for the expected visible state before count or absence assertions.
+
+
+Testing rule levels:
+- Core principles: requested behavior only, isolated tests, explicit async waits, read-only smoke/bootstrap checks.
+- Kit contracts: React/FastAPI/JSON uses FastAPI provider overrides, temp storage, Playwright `data-prototype-id`, and scoped form/field/item anchors.
+- Method contracts: entries in `instructions/testing/test-method-catalog.md` define the expected test shape for recurring cases.
+- Scenario examples: concrete notes/tasks/customer names and fields are examples only; do not promote them into generic prompts.
+
+For browser/e2e in this kit, a compact CRUD/list/search method is a single user journey with steps. It is not permission to add many independent browser tests or unrequested delete/edge-case coverage. Generated forms should expose auxiliary `form.*` and `field.*` anchors so tests do not depend on fragile label/text/CSS chains.
+
+### v72: request contracts and e2e success signals
+
+Keep generated rules at the correct level. For the React + FastAPI + JSON kit, create/update API operations should have one request payload contract across backend, frontend, and pytest: JSON request bodies for create/update, query parameters for list/search/filter. Do not let pytest and the browser UI use different shapes for the same endpoint.
+
+For Playwright submit flows, wait for the requested domain outcome, not for incidental UI cleanup. A form may remain open after submit; e2e should assert the created or edited row/card/status/filter result unless form closing is explicitly required.
+
+
+## v74 notes: skeleton guards and injected-resource identity
+
+- Existing files must be planned as `modify`, not `create`. Plan validation may only coerce `create` to `modify` for known empty kit skeleton paths such as package `__init__.py` bootstrap files. This is not a generic rule for any empty file. Unknown empty files and non-empty existing files remain create blockers.
+- Mutable-state tests rely on injected resources. Services must preserve the identity of the injected resource handle/locator/adapter/config and must not collapse it to a default resource, basename, global singleton, or production storage. The JSON `storage_path` case is only one example of this general rule.
+- Browser/e2e assertions for enum/status/category fields must match the intended user-visible label, not blindly assert the raw API enum value.

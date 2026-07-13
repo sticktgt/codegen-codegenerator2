@@ -1,0 +1,44 @@
+{
+  "run_input_version": 1,
+  "source": "requirements_stage",
+  "slice": {
+    "slice_id": "SLICE-001",
+    "title": "Basic task tracking",
+    "requirement_ids": [
+      "REQ-001",
+      "REQ-002",
+      "REQ-003",
+      "REQ-004"
+    ],
+    "goal": "Build the initial task tracking prototype: list tasks, create tasks, edit task details/status, and search/filter tasks using local JSON mock storage.",
+    "change_type": "create_new",
+    "selected_existing_elements": [],
+    "preserve_existing_behavior_by_default": true,
+    "acceptance_criteria": [
+      "User can see a list of tasks with title, status, and due date.",
+      "User can create a task with title, description, status, and due date.",
+      "User can edit an existing task, including status.",
+      "User can search tasks by text and filter tasks by status.",
+      "The main screen and interactive controls have stable data-prototype-id anchors linked to scheme elements.",
+      "The prototype uses local JSON mock storage and does not require external integrations."
+    ],
+    "constraints": [
+      "No authentication.",
+      "No external integrations.",
+      "No database migrations.",
+      "Use local JSON mock storage from the sample mock plan.",
+      "No new dependencies beyond the selected kit.",
+      "Do not implement drag-and-drop board columns in this slice."
+    ]
+  },
+  "requirements_file": "requirements.json",
+  "current_prototype": {
+    "scheme_model_file": "scheme_model.json",
+    "data_sources_file": "data_sources.json",
+    "mock_plan_file": "mock_plan.json"
+  },
+  "notes": [
+    "This scenario intentionally differs from notes-app: it includes an enum-like status field, a due date, and both text search and status filtering.",
+    "Use it to check whether test method contracts generalize beyond the original notes demo."
+  ]
+}

@@ -27,7 +27,7 @@ Rules:
 - Use project structure and kit rules to propose where changes should go.
 - The model owns architectural planning decisions. Python validation may reject unsafe or malformed plans, but it must not rewrite artifact types, file placement, or create/modify decisions to repair architectural meaning. Produce a plan that is already consistent with the architecture rules.
 - Before writing final JSON, self-check the plan against `instructions/architecture.md`, `instructions/planning-rules.md`, `generation-rules.yaml`, and `architecture-contract.yaml`; fix your own plan if any row violates those rules.
-- The baseline workspace is not empty even for `change_type: create_new`: kit skeleton files such as `frontend/src/routes/routeRegistry.js`, `frontend/src/App.jsx`, `backend/app/main.py`, and package/task files may already exist. If an existing skeleton/integration file must be wired, put it under `file_plan_draft.modify` with a writable policy such as `may_modify`; do not put existing files under `file_plan_draft.create`.
+- The baseline workspace is not empty even for `change_type: create_new`: kit skeleton files such as `frontend/src/routes/routeRegistry.js`, `frontend/src/App.jsx`, `backend/app/main.py`, `backend/app/storage/__init__.py`, empty package `__init__.py` files, and package/task files may already exist. If an existing skeleton/integration/storage file must be wired or filled, put it under `file_plan_draft.modify` with a writable policy such as `may_modify` or `must_modify`; do not put existing files under `file_plan_draft.create`. Pipeline may only coerce create-to-modify for known empty kit skeleton paths; do not rely on that guard for unknown empty files or semantic artifacts.
 - Artifact types whose contract allows only `modify`/`read` (for example `frontend_integration` and `backend_integration`) must never be proposed as `create`.
 - Use `backend_integration` only for `backend/app/main.py`. Use `backend_storage` for `backend/app/storage/__init__.py` and all files under `backend/app/storage/`.
 - Use `frontend_integration` for existing frontend wiring files such as `frontend/src/routes/routeRegistry.js` and `frontend/src/App.jsx`.
@@ -38,13 +38,13 @@ Rules:
 - The scenario/run input describes user intent, acceptance criteria, optional selected existing scheme elements, and constraints. It does not prescribe file policies, new element ids, or implementation artifact names.
 - If `run_input.json` or `implementation_slice.json` includes `selected_existing_elements`, use them as user-selected context. If it is empty or absent, resolve affected existing elements yourself from requirements, scheme_model, traceability implied by existing files, and code.
 - Strictly separate existing and new scheme elements:
-  - `design_delta.resolved_existing_elements` contains only elements that already exist in `scheme_model.json` or were explicitly listed in `implementation_slice.selected_existing_elements`.
-  - `design_delta.proposed_new_elements` contains only elements you introduce for this slice; do not put these ids into `resolved_existing_elements`.
+  - `design_delta.resolved_existing_elements` contains elements that already exist in `scheme_model.json` or were explicitly listed in `implementation_slice.selected_existing_elements`; being resolved existing does not mean implemented code already exists.
+  - `design_delta.proposed_new_elements` contains only element ids you introduce beyond `scheme_model.json`; do not put scheme-model ids into proposed_new_elements just because their implementation files are new.
   - No element id may appear in both lists.
   - Use `source: "selected_by_user"` only for ids explicitly listed in `implementation_slice.selected_existing_elements`.
   - Use `source: "resolved_by_planner"` for existing elements you inferred from requirements, scheme_model, traceability, or code.
 - If the slice extends existing behavior, preserve already accepted behavior by default. Prefer adding a wrapper, UI state, or new artifact over repurposing an existing artifact with a stable responsibility.
-- If a new scheme action is implemented inside an existing screen rather than a dedicated action file, list it in `design_delta.proposed_new_elements` with `implementation_mode: "screen_internal"` and `owning_artifact`. Also include that action id in the owning screen file-plan item `scheme_elements` so UI anchor checks can validate it.
+- If a scheme action is implemented inside a screen rather than a dedicated action file, make the relationship explicit in `design_delta`: for a new action use `proposed_new_elements`; for an existing action from `scheme_model.json` keep it in `resolved_existing_elements` but include `implementation_mode: "screen_internal"` and `owning_artifact`. Also include that action id in the owning screen file-plan item `scheme_elements` so UI anchor checks can validate it.
 - For simple React CRUD/list/search screens, prefer screen-internal UI actions when the button/form handler is rendered directly by the screen. Do not create dedicated frontend action files just for naming symmetry. In the planned screen file item, include the `action.*` ids rendered by the screen so ui_static can validate the anchors.
 - If a new scheme action is implemented by a dedicated file, list it with `implementation_mode: "separate_artifact"` and `artifact` or `planned_artifact`, and the path must follow `generation-rules.yaml` exactly: `frontend/src/actions/{PascalName}.js` such as `CreateNote.js`, not kebab-case or lowercase variants.
 - Do not repurpose an existing action/API/service artifact unless the requirement explicitly asks to replace the old behavior. If you must modify an existing artifact, explain why reuse/wrapping is insufficient in `design_delta.preservation_decisions`.
@@ -156,7 +156,7 @@ Planner-output discipline:
 - Every new scheme element referenced by `file_plan_draft` or `validation_plan_proposal` must appear in `design_delta.proposed_new_elements`.
 - New scheme element ids must not appear in `resolved_existing_elements`, even if they are mentioned by validation checks or anchored inside an existing screen.
 - Existing element ids already present in `scheme_model.json` should not appear in `proposed_new_elements`.
-- A screen-internal action may have no dedicated file, but it still needs a design_delta entry with `implementation_mode: "screen_internal"` and `owning_artifact` pointing to the owning file path or owning screen element id.
+- A screen-internal action may have no dedicated file, but it still needs a design_delta entry with `implementation_mode: "screen_internal"` and `owning_artifact` pointing to the owning file path or owning screen element id. This applies to existing scheme actions as well as new proposed actions.
 - If a screen file implements screen-internal actions, include those action ids in the screen file's `scheme_elements` and include the related requirement ids on the screen file when you can.
 - Do not include files in the file plan merely to satisfy naming symmetry. File creation must follow the actual architecture decision.
 - For confirmation flows, prefer a working minimal plan: preserve the existing destructive action and implement Confirm/Cancel as screen-internal if separate files are not needed.
@@ -177,6 +177,8 @@ Browser kit rule:
 - When a slice changes user-visible UI behavior, propose at least one browser/e2e behavior check (`ui_behavior`, `browser_e2e`, or `e2e`) in addition to `ui_static` checks.
 - For a new behavior test, use `validation_intent: "create_behavior_test"` and a `proposed_file` under `frontend/e2e/` or `frontend/tests/e2e/`.
 - A single compact browser spec may cover multiple related requirements; represent coverage with separate validation checks if needed.
+- For `web.e2e.playwright.crud-list-search-flow`, compact means one user journey test with steps, not many independent Playwright tests for every possible edge case.
+- Do not propose browser checks for unrequested behavior such as delete/confirmation, empty-state, minimal-field, or multi-record edge cases unless the requirements explicitly include them. Backend pytest should cover API edge cases.
 - Browser behavior tests should exercise the actual running frontend through Playwright and may use the existing backend API through the Vite proxy.
 
 

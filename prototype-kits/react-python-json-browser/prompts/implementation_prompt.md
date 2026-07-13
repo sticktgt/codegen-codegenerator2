@@ -28,6 +28,8 @@ Rules:
 
 Pipeline phase output discipline:
 - Use prototype/input/file_plan.json as the only allowed file plan.
+- Before the first Write/Edit, derive the exact writable path set from file_plan.json and validation_plan.json. Keep this checklist in your working notes and only write paths from that set plus required prototype/output reports.
+- Treat common baseline/config files as read-only unless explicitly writable in file_plan.json: backend/tests/test_smoke.py, backend/requirements.txt, frontend/package.json, frontend/playwright.config.js, frontend/vite.config.js.
 - Do not infer additional files from design_delta or naming symmetry. If a new scheme element is screen-internal, implement it only inside its owning artifact when that artifact is allowed by file_plan.json.
 - Do not create, edit, rename, or delete files outside file_plan.json.
 - For mock/storage JSON files, use exactly the storage path listed in file_plan.json. Do not create alias, fallback, seed, or shortened-name storage files such as `notes_mock.json` when the plan lists `notes_json_mock.json`. Update service defaults, API code, tests, and UI assumptions to use the planned path or test-owned temp paths.
@@ -66,10 +68,13 @@ File operation discipline:
 - Otherwise do not create tests.
 - Do not modify `backend/tests/test_smoke.py` for feature-specific API behavior. If smoke is present in file_plan.json as anything other than read-only/rerun coverage, report the conflict in `implementation_report.json` rather than extending smoke.
 - For Playwright repeated item actions, first locate the item/card and then call actions inside that locator. Avoid chained `>> text=... >>` selector strings for row actions.
+- For generated forms, add auxiliary `form.<entity>` and `field.<entity>-<field>` anchors and use them in browser/e2e. Do not write tests that locate inputs via `getByText('Label').locator('input')` or by global form roles.
+- For `web.e2e.playwright.crud-list-search-flow`, create one compact user-journey test with `test.step(...)`, not many independent browser tests that share mutable state. Do not add browser coverage for unrequested behavior such as delete/confirmation or multi-record edge cases.
 
 - Generated or modified tests must use isolated temporary data/fixtures. Do not leave tracked mock storage files such as backend/app/storage/*.json changed after tests run.
-- Backend pytest tests must follow `instructions/testing/test-method-catalog.md` and `instructions/testing/backend-pytest.md`. In particular, mutable or external dependencies used by API routes must be replaceable in tests through an explicit seam such as a FastAPI dependency/provider, app/service factory, constructor injection, or exact route-module service replacement. Do not rewrite implementation source files from pytest fixtures.
-- Browser/e2e tests must follow `instructions/testing/test-method-catalog.md` and `instructions/testing/browser-e2e.md`: use repeatable test-owned data, scoped prototype anchors, awaited Playwright async locator APIs, and visible-state waits after async UI transitions before derived assertions. Do not inspect backend storage files directly from Playwright.
+- Backend pytest tests must follow `instructions/testing/test-method-catalog.md` and `instructions/testing/backend-pytest.md`. For new generated FastAPI JSON-backed API routes, implement the catalog method `backend.pytest.api.mutable-state`: route handlers use `Depends(get_<entity>_service)`, and tests import that provider directly from the API module and use `app.dependency_overrides[get_<entity>_service]` with test-owned temp storage. Never discover the provider through `app.routes[...]`, `.dependencies`, router order, or other FastAPI internals. Do not use shared tracked mock storage for feature tests. Preserve injected test resources exactly: do not collapse an injected path/handle/adapter/config to a basename, default resource, global singleton, or production mock. Do not rewrite implementation source files from pytest fixtures.
+- Keep the HTTP request payload contract consistent across backend API, frontend calls, and backend pytest. For generated browser-backed CRUD in this kit, create/update endpoints should accept JSON request bodies and tests/frontend should use JSON for create/update; list/search/filter should use query parameters.
+- Browser/e2e tests must follow `instructions/testing/test-method-catalog.md` and `instructions/testing/browser-e2e.md`: use repeatable test-owned data, scoped prototype anchors, awaited Playwright async locator APIs, and visible-state waits after async UI transitions before derived assertions. After editing a record, locate/assert/search by the edited value or a stable id, not by the old title/name. After create/edit submit, wait for the requested domain outcome such as a created or edited row/card; do not assert optional form disappearance unless form closing is an explicit requirement. Do not inspect backend storage files directly from Playwright.
 - If validation_plan.json proposes a test file that is not present in file_plan.json, do not create it; report the limitation.
 - Use the kit implementation patterns selected by instructions/implementation-patterns.md when they match the approved file plan. Patterns are implementation guidance only; they do not grant permission to create files outside file_plan.json.
 - Write prototype/output/implementation_report.json.
@@ -111,3 +116,5 @@ Workspace path discipline:
 - Read and write `prototype/input/...` and `prototype/output/...` relative to the workspace root.
 - Never use `/runs/<run-name>/prototype/...`; the valid path is `/runs/<run-name>/workspace/prototype/...` when an absolute path is unavoidable.
 - Do not read from run-level `input/` or `output/` unless the prompt explicitly asks for a diagnostics-only fallback.
+
+- For enum/status/category fields in browser/e2e, assert the intended user-visible display value. Do not assume the raw API value such as `in_progress` is rendered if the UI formats it as a human label such as `In progress`; align UI rendering and Playwright assertions deliberately.

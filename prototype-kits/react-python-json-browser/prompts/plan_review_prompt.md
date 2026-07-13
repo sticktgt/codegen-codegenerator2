@@ -42,7 +42,7 @@ Check:
 - If the slice extends existing behavior, does the plan preserve existing accepted behavior by default?
 - Does the plan avoid repurposing existing artifacts with stable responsibilities when a wrapper, UI state, or new artifact would be sufficient?
 - If the plan modifies an existing artifact, does `design_delta.preservation_decisions` explain why reuse/wrapping is insufficient and what behavior remains preserved?
-- For new scheme elements without a dedicated file, does `implementation_mode: "screen_internal"` name an `owning_artifact` and is the owning artifact allowed by the file plan?
+- For scheme actions without a dedicated file, including existing actions from `scheme_model.json`, does `implementation_mode: "screen_internal"` name an `owning_artifact` and is the owning artifact allowed by the file plan?
 - For dedicated files, does `implementation_mode: "separate_artifact"` align with the proposed file plan?
 - Does the plan avoid unnecessary dependencies, and are any proposed dependency/package changes explicitly allowed by the contract, included in the file plan, and justified?
 - Does the validation plan use explicit `validation_intent` for executable test-file checks, while omitting `validation_intent` for non-file checks such as `ui_static`?
@@ -68,7 +68,7 @@ Review guidance:
 - Excessive browser/e2e scope is normally a warning, not a blocker, when requirement coverage is still explicit. Recommend consolidating related UI behavior checks into one compact spec and moving API edge cases to backend pytest.
 - Treat repurposing an existing API/action/service artifact as a blocker unless the requirement explicitly asks to replace the old behavior.
 - For a confirmation flow around an existing destructive action, prefer preserving the existing destructive action and adding confirmation UI/state or a wrapper action.
-- It is acceptable for a cancel/confirm action to be screen-internal if it only manages local UI flow or invokes an existing action; in that case the design_delta should say so explicitly and the screen file must carry the relevant scheme element for UI anchor validation.
+- It is acceptable for a cancel/confirm or CRUD action to be screen-internal if it only manages local UI flow or invokes an existing API/action; in that case the design_delta should say so explicitly and the screen file must carry the relevant scheme element for UI anchor validation.
 - Do not ask the analyst questions about internal file responsibilities. Make an architectural review judgment.
 
 Write prototype/output/plan_review.json with:

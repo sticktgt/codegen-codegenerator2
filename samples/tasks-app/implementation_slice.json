@@ -1,0 +1,44 @@
+{
+  "slice_id": "SLICE-001",
+  "title": "Basic task tracking",
+  "requirements": [
+    "REQ-001",
+    "REQ-002",
+    "REQ-003",
+    "REQ-004"
+  ],
+  "scheme_elements": [
+    "screen.task-board",
+    "widget.task-filter",
+    "action.create-task",
+    "action.edit-task",
+    "component.task-service",
+    "api.tasks",
+    "data.task",
+    "mock.tasks-json"
+  ],
+  "data_sources": [
+    "mock.tasks-json"
+  ],
+  "allowed_scope": [
+    "create task",
+    "edit task details and status",
+    "list tasks",
+    "search tasks by text",
+    "filter tasks by status",
+    "local JSON mock storage"
+  ],
+  "forbidden_scope": [
+    "authentication",
+    "external integrations",
+    "database migrations",
+    "deployment configuration",
+    "drag-and-drop task board columns"
+  ],
+  "acceptance_criteria": [
+    "User can see a list of tasks with title, status, and due date.",
+    "User can create a task with title, description, status, and due date.",
+    "User can edit an existing task, including status.",
+    "User can search tasks by text and filter them by status."
+  ]
+}

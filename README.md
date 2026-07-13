@@ -109,7 +109,7 @@ OpenCode может во время implementation/repair читать файл�
 
 Для снижения числа repair kit patterns фиксируют не демо-фиксы, а переносимые принципы first-pass generation: mutable/external state должен иметь явную тестовую seam, browser/e2e должен использовать scoped anchors и корректно ждать asynchronous UI state transitions, а detailed API edge cases должны оставаться в backend pytest. FastAPI dependency override, JSON temp storage и Playwright search/list flows — примеры для текущего kit-а, а не глобальные правила для всех будущих стеков.
 
-Способы тестирования теперь фиксируются в `instructions/testing/test-method-catalog.md`. Это список расширяемых методов, а не свободный выбор для каждого проекта: если сценарий совпадает с уже описанным методом, planner/implementation/repair должны использовать его. Сейчас каталог покрывает backend API pytest с mutable-state seam, service unit, smoke rerun, UI static anchors, Playwright CRUD/list/search, form submit, row/card actions, filtered list, async state transitions и count assertions.
+Способы тестирования фиксируются в `instructions/testing/test-method-catalog.md`. Это список расширяемых методов, а не свободный выбор для каждого проекта: если сценарий совпадает с уже описанным методом, planner/implementation/repair должны использовать его. Для текущего FastAPI+JSON kit-а mutable-state API method является конкретным контрактом: generated routes дают provider/dependency seam, а pytest использует dependency overrides с temp storage. Pytest должен импортировать provider напрямую из API module; поиск provider-а через `app.routes[...]` или route internals не считается допустимым test seam. Сейчас каталог покрывает backend API pytest, service unit, smoke rerun, UI static anchors, Playwright CRUD/list/search, form submit, row/card actions, filtered list, async state transitions и count assertions.
 
 По умолчанию при `--allow-repair` pipeline допускает до двух repair-попыток (`--max-repair-attempts`, default `2`). Это нужно для случаев, где первый repair устраняет root failure backend/smoke/test, а после повторной validation остаётся уже независимая frontend/e2e ошибка. Такой цикл не заменяет validation: после каждой repair-попытки заново выполняются collect changes, UI static checks и staged validation.
 
@@ -623,3 +623,25 @@ For recurring implementation shapes, prefer kit-level patterns over adding more 
 Для browser-enabled kit e2e-проверки нужны, но они должны оставаться компактными. Для одного связного CRUD/list/search экрана предпочтителен один небольшой Playwright spec, который покрывает основной пользовательский путь и может быть связан с несколькими requirements через validation plan. Backend pytest должен покрывать API edge cases и большинство негативных сценариев. Это снижает количество repair-циклов и flaky-поведение из-за общего JSON-backed состояния между browser-тестами.
 
 Для create/edit экранов важно различать кнопку, которая открывает форму, и кнопку, которая действительно отправляет форму. `action.create-*` лучше ставить на submit-контрол, а opener делать отдельным auxiliary control (`control.open-create-*`) или явно отличать accessible name. Playwright-тесты должны scope-ить submit button внутри формы, а не использовать page-wide `getByRole('button', { name: 'Create' })`, который может совпасть и с opener, и с submit.
+
+
+Testing rule levels:
+- Core principles: requested behavior only, isolated tests, explicit async waits, read-only smoke/bootstrap checks.
+- Kit contracts: React/FastAPI/JSON uses FastAPI provider overrides, temp storage, Playwright `data-prototype-id`, and scoped form/field/item anchors.
+- Method contracts: entries in `instructions/testing/test-method-catalog.md` define the expected test shape for recurring cases.
+- Scenario examples: concrete notes/tasks/customer names and fields are examples only; do not promote them into generic prompts.
+
+For browser/e2e in this kit, a compact CRUD/list/search method is a single user journey with steps. It is not permission to add many independent browser tests or unrequested delete/edge-case coverage. Generated forms should expose auxiliary `form.*` and `field.*` anchors so tests do not depend on fragile label/text/CSS chains.
+
+### v72: request contracts and e2e success signals
+
+Keep generated rules at the correct level. For the React + FastAPI + JSON kit, create/update API operations should have one request payload contract across backend, frontend, and pytest: JSON request bodies for create/update, query parameters for list/search/filter. Do not let pytest and the browser UI use different shapes for the same endpoint.
+
+For Playwright submit flows, wait for the requested domain outcome, not for incidental UI cleanup. A form may remain open after submit; e2e should assert the created or edited row/card/status/filter result unless form closing is explicitly required.
+
+
+## v74 notes: skeleton guards and injected-resource identity
+
+- Existing files must be planned as `modify`, not `create`. Plan validation may only coerce `create` to `modify` for known empty kit skeleton paths such as package `__init__.py` bootstrap files. This is not a generic rule for any empty file. Unknown empty files and non-empty existing files remain create blockers.
+- Mutable-state tests rely on injected resources. Services must preserve the identity of the injected resource handle/locator/adapter/config and must not collapse it to a default resource, basename, global singleton, or production storage. The JSON `storage_path` case is only one example of this general rule.
+- Browser/e2e assertions for enum/status/category fields must match the intended user-visible label, not blindly assert the raw API enum value.

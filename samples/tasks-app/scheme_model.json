@@ -1,0 +1,143 @@
+{
+  "scheme_id": "SCH-TASKS-001",
+  "title": "Task tracker prototype scheme",
+  "elements": [
+    {
+      "id": "screen.task-board",
+      "type": "screen",
+      "name": "Task Board",
+      "requirements": [
+        "REQ-003",
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "widget.task-filter",
+      "type": "widget",
+      "name": "Task Filter",
+      "requirements": [
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "action.create-task",
+      "type": "action",
+      "name": "Create Task",
+      "requirements": [
+        "REQ-001"
+      ]
+    },
+    {
+      "id": "action.edit-task",
+      "type": "action",
+      "name": "Edit Task",
+      "requirements": [
+        "REQ-002"
+      ]
+    },
+    {
+      "id": "component.task-service",
+      "type": "component",
+      "name": "Task Service",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "api.tasks",
+      "type": "api",
+      "name": "Tasks API",
+      "resource": "tasks",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "data.task",
+      "type": "data_entity",
+      "name": "Task",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "values": [
+            "todo",
+            "in_progress",
+            "done"
+          ],
+          "required": true
+        },
+        {
+          "name": "due_date",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "mock.tasks-json",
+      "type": "mock",
+      "name": "Tasks JSON",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "screen.task-board",
+      "to": "widget.task-filter",
+      "type": "contains"
+    },
+    {
+      "from": "screen.task-board",
+      "to": "component.task-service",
+      "type": "uses"
+    },
+    {
+      "from": "component.task-service",
+      "to": "api.tasks",
+      "type": "exposed_by"
+    },
+    {
+      "from": "component.task-service",
+      "to": "data.task",
+      "type": "reads_writes"
+    },
+    {
+      "from": "data.task",
+      "to": "mock.tasks-json",
+      "type": "stored_in"
+    }
+  ]
+}

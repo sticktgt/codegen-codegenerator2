@@ -32,9 +32,37 @@ def test_create_note(client: TestClient):
 
     assert response.status_code == 201
     assert response.json()["title"] == "A"
+
+
+def test_update_note(client: TestClient):
+    create_response = client.post("/api/notes", json={"title": "A", "content": "B"})
+    note_id = create_response.json()["id"]
+
+    response = client.put(f"/api/notes/{note_id}", json={"title": "A updated"})
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "A updated"
 ```
 
-Fallback only when the implementation does not use FastAPI `Depends(...)`: patch the exact route-module object that endpoints call. Do not patch a helper or class that is no longer used by the endpoint, and do not rewrite implementation files from the test fixture.
+Legacy fallback only when the approved file plan cannot change an existing API module to use FastAPI `Depends(...)`: patch the exact route-module object that endpoints call.
+
+Do not infer the provider from FastAPI route internals. This is unstable and should not be generated:
+
+```python
+# Wrong: route order and route internals are not the dependency contract.
+app.dependency_overrides[app.routes[1].dependencies[0].dependency] = override_get_item_service
+```
+
+Do not lose temp-path isolation inside the service. This also should not be generated:
+
+```python
+# Wrong: temp files from different tests collapse to the same tracked filename.
+self._storage_filename = Path(storage_file).name
+```
+
+Use the injected resource as supplied instead. In this JSON-storage example, that means using the full injected path for reads and writes.
+
+New generated FastAPI JSON-backed code should use the provider/dependency override shape above, not this fallback. Do not test create/update with query params when the frontend/API contract uses JSON bodies; use `json=` for create/update and query params for list/search filters. Do not patch a helper or class that is no longer used by the endpoint, and do not rewrite implementation files from the test fixture.
 
 ```python
 from app.api import notes as notes_api

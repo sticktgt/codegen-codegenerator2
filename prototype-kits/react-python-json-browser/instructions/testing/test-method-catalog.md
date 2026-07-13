@@ -2,20 +2,42 @@
 
 Use this catalog to choose validation methods for this kit. Do not invent a new testing style when one of these methods matches the planned artifact and acceptance criterion. Add new method entries here when a future kit or scenario needs a genuinely different testing approach.
 
-Each validation check may include `test_method_id` with one of the ids below. The id is advisory metadata for the agent and reviewer; the file plan and validation runner remain the execution source of truth.
+Each validation check should include `test_method_id` with one of the ids below. The id is a method contract for the agent and reviewer. The file plan and validation runner remain the execution source of truth, but implementation and repair must follow the selected method instead of mixing styles.
+
+## Method selection rules
+
+- If a planned check matches an existing method, use that method id.
+- Do not switch to another test style during implementation or repair unless the selected method is impossible for the approved file plan; report that conflict instead.
+- Method examples are generic for the current kit, not notes-demo rules. Use entity names, file names, and anchors from the current scheme/file plan.
+- Baseline smoke/bootstrap checks are rerun coverage; feature behavior belongs in feature test files.
+
+## Rule levels
+
+Keep method rules at the right level:
+- **Core testing principles** apply across stacks: validate only requested behavior, keep tests isolated, wait for observable state after async UI transitions, and do not turn smoke/bootstrap checks into feature tests.
+- **Kit contracts** apply to this React + FastAPI + JSON kit: FastAPI mutable-state API tests use explicit providers and dependency overrides; Playwright tests use `data-prototype-id` with `getByTestId`.
+- **Method contracts** below define the allowed shape for recurring validation methods. Agents should follow these contracts rather than inventing a per-scenario testing style.
+- **Scenario examples** may mention notes/tasks/customers/etc.; do not promote those concrete names, fields, or file names into generic rules. Use the current `scheme_model` and `file_plan` names.
 
 ## backend.pytest.api.mutable-state
 
 Use for Python backend API behavior when endpoints read or mutate JSON files, SQLite files, in-memory repositories, mock adapters, or other external/mutable state.
 
-Expected shape:
-- Test through the public API using `TestClient` or the kit's equivalent API client.
-- Prepare isolated test-owned state for each test or fixture.
-- Replace mutable dependencies through an explicit seam: FastAPI `Depends(...)` provider plus `app.dependency_overrides`, app/service factory, constructor injection, repository interface, or exact route-module service replacement.
-- Create the test client after dependency replacement if the app or route captures dependencies.
-- Do not rewrite implementation `.py` files, symlink tracked storage files, or depend on records created by earlier tests.
+Contract for this FastAPI kit:
+- Test through the public API using `TestClient`.
+- Generated API routes that use mutable state must expose a provider function such as `get_<entity>_service()` in the API module.
+- Route handlers must receive the service through `Depends(get_<entity>_service)`. Do not hide the service only in a module-level singleton that tests cannot override.
+- Feature pytest fixtures must import the provider function directly from the API module and override that exact function: `from app.api.<entity> import get_<entity>_service`; `app.dependency_overrides[get_<entity>_service] = lambda: <Service>(storage_path=temp_file)`.
+- Generated browser-backed CRUD APIs must use one request payload contract across backend, frontend, and pytest. For this kit, `POST` create and `PUT`/`PATCH` update endpoints should accept JSON request bodies through Pydantic request models; `GET` list/search/filter endpoints may use query parameters. Frontend `fetch` calls and backend pytest must use the same shape (`json=`/JSON body for create/update, `params`/query string for list filters).
+- Clear dependency overrides in fixture teardown.
+- Do not introspect FastAPI route internals to find dependencies. Never use `app.routes[...]`, `.dependencies`, `dependant`, or route-order indexes as the key for `app.dependency_overrides`; these are framework internals, not the provider contract.
+- Each test or fixture owns a fresh temp storage path. Do not symlink or overwrite tracked mock JSON files.
+- The service/storage layer must preserve the injected test resource identity. Do not let implementation convert an injected temp path, repository, adapter, client, or config to a basename, default resource, global singleton, or planned production mock; that breaks test isolation even when dependency override is correct. For JSON storage this means using the full injected path for reads and writes.
+- Do not rewrite implementation `.py` files from pytest fixtures and do not depend on records created by earlier tests.
 
 Use this method for API edge cases, request validation, not-found cases, and most negative cases. Do not move these edge cases into browser/e2e unless they are explicitly user-visible UI behavior.
+
+For future non-FastAPI stacks, add a separate method or stack-specific example instead of weakening this kit method.
 
 ## backend.pytest.service.unit
 
@@ -46,22 +68,29 @@ Expected shape:
 
 ## web.e2e.playwright.crud-list-search-flow
 
-Use for a single user-facing CRUD/list/search screen.
+Use for a single user-facing create/edit/list/search or CRUD-like screen. The method name is historical: it does **not** grant permission to test delete, confirmation, bulk operations, minimal-field edge cases, or multiple-record edge cases unless those behaviors are explicitly required by the current requirements and validation plan.
 
-Expected shape:
-- Prefer one compact Playwright spec that covers the main happy path for several related requirements.
-- Create runtime-unique records through the UI before editing or searching for them.
-- Scope all interactions through stable anchors: screen/widget/form/item/action.
-- Backend pytest covers API edge cases and negative cases; the browser test proves the user-visible journey.
+Contract for this React + Playwright kit:
+- Prefer one compact Playwright spec for the user journey. For this method, "one compact spec" means one main `test(...)` with `test.step(...)` sections for create/edit/list/search/filter behavior, not many independent Playwright `test(...)` cases that share mutable backend state.
+- Compose this method with `form-submit-flow`, `item-action-flow`, `async-state-transition`, `filtered-list-flow`, and `count-assertion` where relevant.
+- Create runtime-unique records through the UI before editing or searching for them. For search/filter contrast, create at most the records needed by the visible user journey, normally one primary record and optionally one contrast record.
+- Scope interactions through stable anchors: `screen.*`, `widget.*`, `form.*`, `field.*`, `item.*`, `control.*`, and `action.*`.
+- Keep search/filter state explicit. Before asserting full-list counts or presence of multiple records, clear search/filter controls and wait for a known row/card to be visible. Prefer presence assertions for runtime-owned rows over global exact counts unless the test fully controls the visible dataset and filters are known to be reset.
+- After a mutation changes the visible record identity, use the updated user-visible value for subsequent row lookup and search assertions. For example, after editing a title, subsequent row locators should use the edited title, not the original title.
+- Do not assert optional UI cleanup state such as `expect(form).not.toBeVisible()` unless the requirement explicitly says the form must close. After submit, wait for the domain outcome that proves success: created row visible, updated row visible, status changed, filter result visible, etc. A form remaining open can be a valid UI design.
+- Backend pytest covers API edge cases and negative cases; the browser test proves the user-visible journey. Do not duplicate backend API edge cases as separate browser tests.
 
 ## web.e2e.playwright.form-submit-flow
 
 Use when a UI action is performed through a form.
 
 Expected shape:
-- If a separate button only opens a form, anchor it as an auxiliary control such as `control.open-create-note`; it is not the scheme action.
-- Put the scheme `action.create-*` or `action.edit-*` anchor on the submit/save control that actually performs the mutation.
-- In tests, click the opener, locate the visible form or screen region, fill fields inside that scope, and click the submit action inside that same scope.
+- If a separate button only opens a form, anchor it as an auxiliary control such as `control.open-create-<entity>`; it is not the scheme action.
+- Put the scheme `action.create-*` or `action.edit-*` anchor on the submit/save control that actually performs the mutation. Do not put the same `action.create-*` anchor on both the opener and the submit button.
+- Generated forms should have a stable auxiliary form anchor such as `form.<entity>` when the test needs to scope fields and submit controls.
+- Generated form fields should have stable auxiliary field anchors such as `field.<entity>-title`, `field.<entity>-status`, or `field.<entity>-due-date`. These anchors are not scheme elements; they are testability anchors for fields.
+- In tests, click the opener, locate the visible form by `getByTestId('form.<entity>')`, fill fields inside that scope by `getByTestId('field.<entity>-<field>')`, and click the submit action inside that same form scope.
+- Do not depend on label text being an ancestor of an input, for example `getByText('Title:').locator('input')`. If using accessible labels, the UI must still provide correct `htmlFor`/`id`, but field anchors are preferred for generated e2e tests in this kit.
 - Avoid page-wide role/text selectors for ambiguous buttons such as `Create`, `Save`, or `Edit`.
 
 ## web.e2e.playwright.item-action-flow
@@ -82,7 +111,7 @@ Use after any UI action that changes page state: create/edit/delete, submit form
 
 Expected shape:
 - Wait for a user-visible result before derived assertions.
-- Prefer positive visible-state assertions on a scoped row/card/control.
+- Prefer positive visible-state assertions on a scoped row/card/control that represents the requested domain outcome. Do not use negative assertions about optional UI state, such as form disappearance, as a generic submit-success signal.
 - Only after visible state is settled, compute `count()` or assert collection size.
 - Avoid fragile negative assertions against old text in mutable lists unless the test owns the dataset and can uniquely scope the old record.
 
@@ -104,3 +133,9 @@ Expected shape:
 - `const count = await locator.count();`
 - `expect(count).toBeGreaterThan(0);`
 - Never pass a Promise to Jest/Playwright assertions, for example `expect(locator.count()).toBeGreaterThan(...)`.
+
+## Enum/status display assertions
+
+For enum/status/category fields, keep API values and visible labels aligned deliberately. If the UI renders human labels such as `In progress`, browser/e2e must assert that visible label, not the raw API value `in_progress`. If the UI is expected to show raw values, render exactly those raw values. Prefer stable attribute anchors such as `field.<entity>-status` for form controls and visible row text or auxiliary field display anchors for row attributes.
+
+Do not repair a failed status assertion by adding waits when the actual problem is value/label mismatch. First inspect the UI rendering and align the test with the intended user-visible value, or align the UI rendering with the acceptance criterion.
