@@ -1,0 +1,138 @@
+{
+  "scheme_id": "SCH-CUSTOMERS-001",
+  "title": "Customer directory prototype scheme",
+  "elements": [
+    {
+      "id": "screen.customer-directory",
+      "type": "screen",
+      "name": "Customer Directory",
+      "requirements": [
+        "REQ-003",
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "widget.customer-search",
+      "type": "widget",
+      "name": "Customer Search",
+      "requirements": [
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "action.create-customer",
+      "type": "action",
+      "name": "Create Customer",
+      "requirements": [
+        "REQ-001"
+      ]
+    },
+    {
+      "id": "action.edit-customer",
+      "type": "action",
+      "name": "Edit Customer",
+      "requirements": [
+        "REQ-002"
+      ]
+    },
+    {
+      "id": "component.customer-service",
+      "type": "component",
+      "name": "Customer Service",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "api.customers",
+      "type": "api",
+      "name": "Customers API",
+      "resource": "customers",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "data.customer",
+      "type": "data_entity",
+      "name": "Customer",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "full_name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "phone",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "segment",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "mock.customers-json",
+      "type": "mock",
+      "name": "Customers JSON",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "screen.customer-directory",
+      "to": "widget.customer-search",
+      "type": "contains"
+    },
+    {
+      "from": "screen.customer-directory",
+      "to": "component.customer-service",
+      "type": "uses"
+    },
+    {
+      "from": "component.customer-service",
+      "to": "api.customers",
+      "type": "exposed_by"
+    },
+    {
+      "from": "component.customer-service",
+      "to": "data.customer",
+      "type": "reads_writes"
+    },
+    {
+      "from": "data.customer",
+      "to": "mock.customers-json",
+      "type": "stored_in"
+    }
+  ]
+}

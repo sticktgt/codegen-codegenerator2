@@ -95,6 +95,9 @@ Validation repair note:
 
 
 Common fast repairs to prefer over broad diagnostic loops:
+
+- If Playwright cannot find `control.open-create-<entity>`, inspect the UI before changing the test. When there is a separate open-create button, repair the UI to use `control.open-create-<entity>` and keep `action.create-<entity>` on the submit/save control inside `form.<entity>`.
+- If search/filter e2e fails with count 0 or missing rows immediately after changing a filter/search input, first repair the Playwright flow to wait for the expected runtime-owned matching row/card to be visible. Do not change product loading/rendering behavior only to satisfy a premature count assertion unless the requirement explicitly defines that loading UX.
 - Mutable-state test isolation: ensure API requests in tests use the isolated dependency prepared by the test fixture; add or use a small allowed provider/factory/injection seam rather than patching unrelated helpers.
 - Playwright async locator assertions: await locator async APIs before numeric assertions, for example `const count = await locator.count(); expect(count)...`.
 - Post-edit assertions: if an edit changes the text used to locate a row/card, switch later row lookup/search assertions to the edited value or a stable id.

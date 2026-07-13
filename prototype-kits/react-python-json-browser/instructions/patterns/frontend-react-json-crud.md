@@ -18,6 +18,7 @@ Use this pattern for small React screens backed by the kit FastAPI JSON CRUD ser
   - opener: auxiliary anchor such as `control.open-create-note`;
   - form scope: auxiliary anchor such as `form.note` when fields and submit controls need stable scoping;
   - submitter: scheme action anchor such as `action.create-note` or `action.edit-note`.
+  If the UI has both an opener and a submitter, these anchors must be different and the browser test must use the same contract.
 - Do not invent suffixed scheme ids such as `action.create-note-submit`.
 - If one submit button switches modes, use static literal alternatives: `data-prototype-id={editing ? 'action.edit-note' : 'action.create-note'}`.
 - For repeated rows/cards, add an auxiliary item anchor such as `data-prototype-id="item.note"`; repeated item anchors are allowed and are used for scoped browser actions.
@@ -30,7 +31,7 @@ Design the UI so the catalog methods in `instructions/testing/test-method-catalo
 - A repeated record can be located by an item/card anchor and runtime-owned text.
 - The edit action is inside the item/card for the record it edits.
 - Search/filter input lives inside the search widget anchor.
-- After create/edit/search, the UI exposes a visible row/card state that tests can wait for before count or absence assertions.
+- After create/edit/search/filter, the UI exposes a visible row/card state that tests can wait for before count or absence assertions. For filters, the visible state should be a runtime-owned row/card that is expected to match the active filter.
 - After an edit changes the title/name used to locate a row, subsequent UI assertions should locate the row by the edited value or by a stable id, not by the pre-edit value.
 
 Avoid page designs where browser tests must rely on global text matches, ambiguous `Create`/`Edit` buttons, or hidden implicit state transitions.
@@ -67,7 +68,7 @@ await form.getByText('Title:').locator('input[type="text"]').fill(runtimeTitle);
 
 ## Browser flow scope
 
-For a single create/edit/list/search screen, keep the generated browser test to the requested user journey. Do not add delete/confirmation, empty-state, minimal-field, or multi-record edge-case browser tests unless the current requirements explicitly ask for them. When search/filter is involved, create only the runtime-owned records needed for the flow and clear filter state before any full-list count assertion.
+For a single create/edit/list/search screen, keep the generated browser test to the requested user journey. Do not add delete/confirmation, empty-state, minimal-field, or multi-record edge-case browser tests unless the current requirements explicitly ask for them. When search/filter is involved, create only the runtime-owned records needed for the flow, wait for the expected filtered row/card after changing filters, and clear filter state before any full-list count assertion.
 
 
 ## Submit and visible outcome contract

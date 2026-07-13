@@ -266,3 +266,9 @@ For Playwright submit flows, wait for the requested domain outcome, not for inci
 - Existing files must be planned as `modify`, not `create`. Plan validation may only coerce `create` to `modify` for known empty kit skeleton paths such as package `__init__.py` bootstrap files. This is not a generic rule for any empty file. Unknown empty files and non-empty existing files remain create blockers.
 - Mutable-state tests rely on injected resources. Services must preserve the identity of the injected resource handle/locator/adapter/config and must not collapse it to a default resource, basename, global singleton, or production storage. The JSON `storage_path` case is only one example of this general rule.
 - Browser/e2e assertions for enum/status/category fields must match the intended user-visible label, not blindly assert the raw API enum value.
+
+
+## v75 notes: opener/action anchors and filtered-list waits
+
+- Keep opener controls and scheme submit actions distinct in generated UI and tests. A button that only opens a create form uses `control.open-create-<entity>`; the control that actually creates the record uses `action.create-<entity>` inside `form.<entity>`.
+- Filter/search e2e assertions should wait for a runtime-owned matching row/card to become visible before reading collection counts. A transient zero count during loading should normally be fixed in the Playwright wait, not by changing product loading behavior unless the requirement specifies that UX.

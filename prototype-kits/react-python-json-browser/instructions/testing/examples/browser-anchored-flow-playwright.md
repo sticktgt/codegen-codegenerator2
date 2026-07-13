@@ -48,6 +48,15 @@ test('user can create, edit, list, and search records', async ({ page }) => {
 
   await search.fill('');
   await expect(updatedRow).toBeVisible();
+
+  // If a status/category filter exists, wait for a matching runtime-owned row before count assertions.
+  const filter = page.getByTestId('widget.note-search');
+  const statusFilter = filter.getByTestId('field.note-status-filter');
+  if (await statusFilter.count()) {
+    await statusFilter.selectOption('in_progress');
+    await expect(updatedRow).toBeVisible();
+  }
+
   const rowCount = await page.getByTestId('item.note').count();
   expect(rowCount).toBeGreaterThan(0);
 });

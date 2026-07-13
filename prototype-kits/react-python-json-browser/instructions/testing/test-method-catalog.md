@@ -75,7 +75,8 @@ Contract for this React + Playwright kit:
 - Compose this method with `form-submit-flow`, `item-action-flow`, `async-state-transition`, `filtered-list-flow`, and `count-assertion` where relevant.
 - Create runtime-unique records through the UI before editing or searching for them. For search/filter contrast, create at most the records needed by the visible user journey, normally one primary record and optionally one contrast record.
 - Scope interactions through stable anchors: `screen.*`, `widget.*`, `form.*`, `field.*`, `item.*`, `control.*`, and `action.*`.
-- Keep search/filter state explicit. Before asserting full-list counts or presence of multiple records, clear search/filter controls and wait for a known row/card to be visible. Prefer presence assertions for runtime-owned rows over global exact counts unless the test fully controls the visible dataset and filters are known to be reset.
+- Treat opener and submit anchors as a first-pass contract: if the UI has a separate open-create button, the opener must use `control.open-create-<entity>` and the create submit/save control inside `form.<entity>` must use `action.create-<entity>`. The Playwright spec must click the same opener contract rather than falling back to the action anchor.
+- Keep search/filter state explicit. After every search/filter input change, first wait for a runtime-owned expected row/card that satisfies the filter to be visible. Only then use `count()` or collection assertions. Before asserting full-list counts or presence of multiple records, clear search/filter controls and wait for a known row/card to be visible. Prefer presence assertions for runtime-owned rows over global exact counts unless the test fully controls the visible dataset and filters are known to be reset.
 - After a mutation changes the visible record identity, use the updated user-visible value for subsequent row lookup and search assertions. For example, after editing a title, subsequent row locators should use the edited title, not the original title.
 - Do not assert optional UI cleanup state such as `expect(form).not.toBeVisible()` unless the requirement explicitly says the form must close. After submit, wait for the domain outcome that proves success: created row visible, updated row visible, status changed, filter result visible, etc. A form remaining open can be a valid UI design.
 - Backend pytest covers API edge cases and negative cases; the browser test proves the user-visible journey. Do not duplicate backend API edge cases as separate browser tests.
@@ -86,7 +87,7 @@ Use when a UI action is performed through a form.
 
 Expected shape:
 - If a separate button only opens a form, anchor it as an auxiliary control such as `control.open-create-<entity>`; it is not the scheme action.
-- Put the scheme `action.create-*` or `action.edit-*` anchor on the submit/save control that actually performs the mutation. Do not put the same `action.create-*` anchor on both the opener and the submit button.
+- Put the scheme `action.create-*` or `action.edit-*` anchor on the submit/save control that actually performs the mutation. Do not put the same `action.create-*` anchor on both the opener and the submit button. If the e2e uses `control.open-create-*`, the generated UI must render that exact opener anchor.
 - Generated forms should have a stable auxiliary form anchor such as `form.<entity>` when the test needs to scope fields and submit controls.
 - Generated form fields should have stable auxiliary field anchors such as `field.<entity>-title`, `field.<entity>-status`, or `field.<entity>-due-date`. These anchors are not scheme elements; they are testability anchors for fields.
 - In tests, click the opener, locate the visible form by `getByTestId('form.<entity>')`, fill fields inside that scope by `getByTestId('field.<entity>-<field>')`, and click the submit action inside that same form scope.
@@ -112,7 +113,7 @@ Use after any UI action that changes page state: create/edit/delete, submit form
 Expected shape:
 - Wait for a user-visible result before derived assertions.
 - Prefer positive visible-state assertions on a scoped row/card/control that represents the requested domain outcome. Do not use negative assertions about optional UI state, such as form disappearance, as a generic submit-success signal.
-- Only after visible state is settled, compute `count()` or assert collection size.
+- Only after visible state is settled, compute `count()` or assert collection size. For filter/search flows, the settling signal should be the expected runtime-owned row/card becoming visible, not just the screen root or widget staying visible.
 - Avoid fragile negative assertions against old text in mutable lists unless the test owns the dataset and can uniquely scope the old record.
 
 ## web.e2e.playwright.filtered-list-flow
@@ -121,9 +122,10 @@ Use for search/filter behavior on a list.
 
 Expected shape:
 - Create or otherwise control the records being filtered.
-- Filter for a runtime-owned value and assert the matching row/card is visible.
+- Filter for a runtime-owned value and assert the matching row/card is visible before any derived count assertion. A transient zero count during loading is a test timing problem unless the user requirement explicitly says the list must remain populated while loading.
 - For non-matching filters, prefer an explicit empty-state UI if the app has one; otherwise avoid global `toHaveCount(0)` on persistent lists unless the dataset is controlled by the test.
 - Clearing a filter is an async state transition: wait for a known row/card to become visible before asserting counts.
+- Do not repair a search/filter timing failure by changing product loading behavior unless the implementation violates a requirement. Prefer a stable Playwright wait on the expected visible filtered result.
 
 ## web.e2e.playwright.count-assertion
 

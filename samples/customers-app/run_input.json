@@ -1,0 +1,45 @@
+{
+  "run_input_version": 1,
+  "source": "requirements_stage",
+  "slice": {
+    "slice_id": "SLICE-001",
+    "title": "Customer directory",
+    "requirement_ids": [
+      "REQ-001",
+      "REQ-002",
+      "REQ-003",
+      "REQ-004"
+    ],
+    "goal": "Build the initial customer directory prototype: list customers, create customer records, edit contact data, and search customers by name/email/phone using local JSON mock storage.",
+    "change_type": "create_new",
+    "selected_existing_elements": [],
+    "preserve_existing_behavior_by_default": true,
+    "acceptance_criteria": [
+      "User can see a list of customers with full name, email, phone, and segment.",
+      "User can create a customer with full name, email, phone, and segment.",
+      "User can edit an existing customer's email and phone.",
+      "User can search customers by name, email, or phone.",
+      "The main screen and interactive controls have stable data-prototype-id anchors linked to scheme elements.",
+      "The prototype uses local JSON mock storage and does not require external integrations."
+    ],
+    "constraints": [
+      "No authentication.",
+      "No external integrations.",
+      "No database migrations.",
+      "No customer deduplication or MDM golden-record matching in this slice.",
+      "Use local JSON mock storage from the sample mock plan.",
+      "No new dependencies beyond the selected kit.",
+      "Do not implement delete customer in this slice."
+    ]
+  },
+  "requirements_file": "requirements.json",
+  "current_prototype": {
+    "scheme_model_file": "scheme_model.json",
+    "data_sources_file": "data_sources.json",
+    "mock_plan_file": "mock_plan.json"
+  },
+  "notes": [
+    "This scenario intentionally differs from tasks-app: it has no status enum or status filter, and search should work across name, email, and phone fields.",
+    "Use it to check whether CRUD/list/search test method contracts generalize beyond notes/tasks examples."
+  ]
+}

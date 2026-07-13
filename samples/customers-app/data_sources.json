@@ -1,0 +1,21 @@
+{
+  "data_sources": [
+    {
+      "id": "mock.customers-json",
+      "type": "mock",
+      "name": "Customers JSON",
+      "format": "json",
+      "status": "generated",
+      "scheme_elements": [
+        "mock.customers-json",
+        "data.customer"
+      ],
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004"
+      ]
+    }
+  ]
+}

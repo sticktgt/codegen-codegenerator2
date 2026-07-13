@@ -118,3 +118,9 @@ Workspace path discipline:
 - Do not read from run-level `input/` or `output/` unless the prompt explicitly asks for a diagnostics-only fallback.
 
 - For enum/status/category fields in browser/e2e, assert the intended user-visible display value. Do not assume the raw API value such as `in_progress` is rendered if the UI formats it as a human label such as `In progress`; align UI rendering and Playwright assertions deliberately.
+
+
+Browser/e2e first-pass self-check:
+- If the create UI uses a separate opener button, render `control.open-create-<entity>` on the opener and render `action.create-<entity>` only on the submit/save control inside `form.<entity>`.
+- The generated Playwright spec must click the opener control and then scope the submit action inside the visible form; do not make the same `action.create-*` anchor serve both roles.
+- After search/filter changes, wait for the expected runtime-owned row/card to be visible before using `count()` or absence assertions.

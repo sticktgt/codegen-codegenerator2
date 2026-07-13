@@ -1,0 +1,45 @@
+{
+  "slice_id": "SLICE-001",
+  "title": "Customer directory",
+  "requirements": [
+    "REQ-001",
+    "REQ-002",
+    "REQ-003",
+    "REQ-004"
+  ],
+  "scheme_elements": [
+    "screen.customer-directory",
+    "widget.customer-search",
+    "action.create-customer",
+    "action.edit-customer",
+    "component.customer-service",
+    "api.customers",
+    "data.customer",
+    "mock.customers-json"
+  ],
+  "data_sources": [
+    "mock.customers-json"
+  ],
+  "allowed_scope": [
+    "create customer",
+    "edit customer contact data",
+    "list customers",
+    "search customers by name, email, or phone",
+    "local JSON mock storage"
+  ],
+  "forbidden_scope": [
+    "authentication",
+    "external integrations",
+    "database migrations",
+    "deployment configuration",
+    "customer deduplication",
+    "MDM golden record matching",
+    "delete customer"
+  ],
+  "acceptance_criteria": [
+    "User can see a list of customers with name, email, phone, and segment.",
+    "User can create a customer with full name, email, phone, and segment.",
+    "User can edit an existing customer's email and phone.",
+    "User can search customers by name, email, or phone."
+  ]
+}
