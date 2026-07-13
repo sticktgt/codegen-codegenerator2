@@ -18,6 +18,18 @@ Use this pattern for small JSON-backed backend features with API, service, model
 
 For JSON-backed services, storage helpers and services must accept either the planned storage filename/path or an explicit temp path from tests. Treat `Path`/absolute/full paths as the exact storage target. Do not convert injected storage paths to only the file name before reading/writing. This is the JSON-storage example of the broader kit rule: any injected test resource handle, locator, repository, adapter, client, or config must be used as supplied and must not be replaced by a default resource or global singleton.
 
+For new JSON-backed services, prefer constructor injection over post-construction mutation:
+
+```python
+def get_customer_service() -> CustomerService:
+    return CustomerService()
+
+# in tests
+app.dependency_overrides[get_customer_service] = lambda: CustomerService(storage_path=temp_file)
+```
+
+Avoid patterns such as `service.set_test_storage(temp_file)` unless existing code already requires them. If such a setter exists, it must still preserve the full temp path and must not store only `temp_file.name`.
+
 Preferred service shape:
 
 ```python
@@ -55,7 +67,12 @@ Do not implement create/update as individual FastAPI query parameters when the g
 ## Route and prefix consistency
 
 - Choose one public API shape and use it consistently across backend tests and frontend calls.
-- If `main.py` includes `notes_router` with `prefix="/api"`, and the router itself uses `prefix="/notes"`, clients should call `/api/notes`.
+- In this React/FastAPI JSON kit, the standard public API path is `/api/<resources>`. Prefer this wiring:
+  - API module: `router = APIRouter(prefix="/<resources>", tags=["<resources>"])`
+  - `backend/app/main.py`: `app.include_router(<resources>_router, prefix="/api")`
+  - clients/tests: `/api/<resources>`
+- Do not split the prefix inconsistently, for example tests call `/api/customers` while `main.py` includes the router without `prefix="/api"` and the router only has `prefix="/customers"`. That produces working code only after repair.
+- Do not duplicate `/api` in both the router and `main.py` unless the generated tests and frontend are deliberately aligned to that exact shape. Prefer the standard split above for new generated artifacts.
 - Avoid defining both `/notes` and `/api/notes` unless the requirement explicitly needs compatibility aliases.
 - Search can be either `GET /api/notes?q=...` or `GET /api/notes/search?q=...`, but tests and UI must use the same endpoint.
 

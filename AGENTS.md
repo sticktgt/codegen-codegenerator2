@@ -2,18 +2,26 @@
 
 Краткий технический контекст для агента или другого чата, который будет дорабатывать проект `codegenerator2`.
 
-## Назначение
+Документ описывает текущую версию проекта и активный kit `react-python-json-browser`. Он предназначен для быстрого ввода агента в проект без обязательного чтения всего кода и всех markdown-инструкций. Детальные правила остаются в kit-инструкциях и prompt-файлах.
 
-`codegenerator2` — стенд для управляемой генерации прототипов приложений через OpenCode/LLM-агентов. Агент работает не свободно со всем репозиторием, а внутри контролируемого pipeline:
+## Назначение проекта
+
+`codegenerator2` — стенд для управляемой генерации демонстрационных прототипов приложений через OpenCode/LLM-агентов.
+
+Основной workflow:
 
 ```text
-run_input.json
+samples/<scenario>/run_input.json
+→ runs/<run>/workspace
 → OpenCode plan
 → formal plan validation
 → OpenCode plan-review
 → OpenCode implementation
-→ boundary / UI static / validation / traceability
-→ scenario_result.json
+→ boundary checks
+→ UI static checks
+→ validation
+→ traceability
+→ runs/<run>/output/scenario_result.json
 ```
 
 Главный контракт:
@@ -22,253 +30,565 @@ run_input.json
 samples/<scenario>/run_input.json → runs/<run>/output/scenario_result.json
 ```
 
-`run_input.json` — канонический вход от requirements stage. `scenario_result.json` — основной отчетный контракт для будущего UI/отчета.
+`run_input.json` — канонический вход от requirements stage. `scenario_result.json` — основной машинно-читаемый результат запуска для будущего UI/отчета.
 
-## Основная архитектурная идея
+## Архитектурная идея
 
-Цель проекта — генерировать код не как свободный diff, а как реализацию требований в рамках архитектурного шаблона. Шаблон разделяет уровни приложения: UI screens/widgets/actions, backend API, backend services, data models, storage/mock data, validation tests и существующие integration/skeleton files.
+Проект генерирует код не как свободный diff, а как реализацию требований внутри заранее описанного architecture kit-а.
 
-Модель должна:
+Активный kit разделяет приложение на уровни:
 
-- прочитать требования и architecture kit;
-- составить план реализации по правилам kit-а;
-- сама проверить план по этим правилам перед записью JSON;
-- реализовать только утвержденный план;
-- исправлять ошибки реализации только внутри разрешенных файлов.
+- frontend screen;
+- frontend widget;
+- frontend action;
+- backend API;
+- backend service/component;
+- backend data model;
+- backend JSON storage/mock data;
+- validation tests;
+- существующие skeleton/integration files.
 
-Python-код не должен становиться вторым архитектурным planner-ом. Он организует pipeline, передает контекст модели, проверяет технические границы и собирает результаты.
+Модель отвечает за содержательное планирование и реализацию:
 
-## Где живут правила
+- читает требования и контекст текущего run-а;
+- читает правила активного kit-а из workspace;
+- формирует `design_delta`, `file_plan` и `validation_plan`;
+- самопроверяет план до записи JSON;
+- реализует только утвержденный `file_plan.json`;
+- исправляет ошибки только в разрешенных файлах.
 
-Главные правила разработки и архитектуры лежат в активном kit-е:
-
-```text
-prototype-kits/react-python-json-browser/
-  architecture-contract.yaml      machine-readable contract: artifact types, roots, operations, validation capabilities
-  generation-rules.yaml           naming and scheme-to-file mapping
-  instructions/architecture.md    human-readable layer rules and skeleton/integration rules
-  instructions/planning-rules.md  planner checklist and output rules
-  instructions/coding-rules.md    implementation coding rules
-  instructions/validation-rules.md validation and UI anchor rules
-  prompts/                        phase prompts that reference these rules
-  examples/                       small examples, not ready-made project code
-  template/                       minimal skeleton workspace
-```
-
-`architecture-contract.yaml` и `generation-rules.yaml` — не место для бизнес-логики. Они описывают архитектурные уровни, допустимые корни, операции и naming. Предметные решения должны приходить из требований и плана модели.
-
-В workspace канонический путь для markdown-инструкций — `instructions/...`. Pipeline также может материализовать read-only compatibility mirror этих инструкций под `prototype/input/instructions/...`, чтобы старые или упрямые agent traces не давали шумные failed reads. Этот mirror является baseline metadata, а не generated output.
-
-## Роль Python-кода
-
-Python pipeline отвечает за:
-
-- подготовку workspace и синхронизацию kit context;
-- запуск OpenCode phases;
-- проверку наличия и формата обязательных JSON outputs;
-- минимальные machine-readable safety checks: безопасные относительные пути, forbidden paths, allowed roots, dependency boundary;
-- сбор git diff и сравнение с утвержденным `file_plan.json`;
-- статические проверки результата кода, например `data-prototype-id` anchors;
-- запуск `task validate`;
-- traceability, reports, diagnostics, usage logs.
-
-Python pipeline не должен:
-
-- придумывать имена новых feature-файлов или тестов;
-- заменять kit-level test method contracts частными эвристиками;
-- исправлять `artifact_type`, если модель выбрала неверный архитектурный слой;
-- превращать `create` в `modify` по содержательному смыслу плана;
-- добавлять скрытые архитектурные исключения под конкретный ответ модели;
-- переносить правила разработки из kit-а в Python-код.
-
-Допустимая нормализация Python — только техническая: canonical paths, default для необязательного поля, сортировка/запись JSON, совместимость старого имени поля с новым. Содержательные решения остаются на стороне модели и правил kit-а.
+Python pipeline отвечает за порядок выполнения, технические границы, запуск проверок, сбор отчетов и export artifacts. Python-код не должен становиться вторым архитектурным planner-ом и не должен переносить в себя предметные правила конкретных сценариев.
 
 ## Активный kit
 
-Используется один kit:
+Активный kit:
 
 ```text
 prototype-kits/react-python-json-browser/
 ```
 
-Это React + Python/FastAPI-compatible + JSON mock storage kit с browser/e2e validation через Playwright. Отдельный lightweight kit сейчас не поддерживается, чтобы не держать две расходящиеся копии правил и prompt-ов.
-
-## Проверенный запуск после clone
-
-Запускать нужно с greenfield baseline, а не сразу с инкрементального slice.
-
-Порядок:
+Стек kit-а:
 
 ```text
-SLICE-001 basic notes app
-→ SLICE-003 confirm delete
-→ SLICE-004 note count summary
+frontend: React / JavaScript
+backend: Python / FastAPI
+storage: local JSON files
+browser validation: Playwright
+validation runner: Taskfile
 ```
 
-Baseline:
+Основные файлы kit-а:
+
+```text
+prototype-kits/react-python-json-browser/
+  kit.yaml
+  generation-rules.yaml
+  architecture-contract.yaml
+  Taskfile.yml
+  opencode.json
+  AGENTS.md
+  agents/
+  prompts/
+  instructions/
+  examples/
+  template/
+```
+
+Назначение основных файлов:
+
+- `kit.yaml` — метаданные kit-а, stack, capabilities, limits, default validation task.
+- `generation-rules.yaml` — naming и mapping scheme elements в пути файлов.
+- `architecture-contract.yaml` — machine-readable contract: artifact types, allowed roots, operations, validation capabilities, workspace isolation.
+- `Taskfile.yml` — команды `install`, `smoke`, `test`, `build`, `frontend-behavior`, `validate`, `export`.
+- `opencode.json` — конфигурация OpenCode внутри workspace.
+- `prompts/` — prompt-шаблоны фаз `plan`, `plan-review`, `implementation`, `repair`.
+- `instructions/` — правила архитектуры, планирования, реализации, repair, validation, traceability.
+- `instructions/patterns/` — повторно используемые backend/frontend implementation patterns.
+- `instructions/testing/` — backend pytest, browser/e2e, test method catalog и примеры.
+- `template/` — минимальный skeleton workspace.
+
+`architecture-contract.yaml` и `generation-rules.yaml` описывают архитектурные уровни и допустимые операции. Бизнес-логика приходит из `samples/<scenario>/requirements.json`, `scheme_model.json`, `run_input.json` и `implementation_slice.json`.
+
+## Дисциплина путей workspace
+
+OpenCode-фазы работают внутри текущего run workspace:
+
+```text
+runs/<run>/workspace/
+```
+
+Канонические пути внутри workspace:
+
+```text
+prototype/input/...      входы текущего run-а
+instructions/...         markdown-инструкции kit-а, синхронизированные в workspace
+prompts/...              prompt snapshots для диагностики
+frontend/...             frontend prototype files
+backend/...              backend prototype files
+prototype/output/...     обязательные outputs фаз
+```
+
+Правила чтения:
+
+- читать `instructions/...` из текущего workspace;
+- не читать repository-root `/instructions/...`;
+- не использовать source files из `prototype-kits/...` как состояние текущего run-а;
+- `prototype/input/instructions/...` — compatibility mirror, если он создан pipeline; основной prompt-facing путь — `instructions/...`.
+
+Правила записи:
+
+- писать generated code только в файлы, разрешенные `prototype/input/file_plan.json`;
+- писать phase reports только в `prototype/output/...`;
+- не писать в `samples/`, `prototype-kits/`, `architecture-profiles/`, `tools/`, `prototype_pipeline/` во время OpenCode implementation/repair.
+
+## Роль Python-кода
+
+Python pipeline выполняет:
+
+- подготовку workspace;
+- синхронизацию kit context;
+- синхронизацию run inputs;
+- синхронизацию prompt snapshots при `--sync-prompts`;
+- запуск OpenCode-фаз;
+- проверку обязательных JSON outputs;
+- formal plan validation;
+- сбор agent reports;
+- сбор git diff;
+- проверку boundary по утвержденному `file_plan.json`;
+- UI static checks по `data-prototype-id` anchors;
+- запуск `task validate`;
+- сбор traceability;
+- сбор usage metrics;
+- формирование `run_summary.json`, `scenario_result.json`, `run_report.md`;
+- export prototype artifact и diagnostics archive.
+
+Python pipeline не выполняет:
+
+- генерацию бизнес-логики;
+- выбор новых feature-файлов за модель;
+- выбор имен тестов за модель;
+- содержательную нормализацию `artifact_type`;
+- автоматическое исправление неверного архитектурного слоя;
+- замену kit-level test contracts частными Python-эвристиками.
+
+Допустимые Python checks — технические и machine-readable: безопасные пути, forbidden paths, dependency boundary, обязательные files, JSON shape, UI anchors, validation status, traceability status.
+
+## Этапы pipeline
+
+### 1. Подготовка run
+
+CLI:
+
+```bash
+python3 tools/prepare_run_from_scenario.py \
+  --scenario samples/<scenario>/run_input.json \
+  --run runs/<run> \
+  --kit prototype-kits/react-python-json-browser
+```
+
+Создает `runs/<run>/workspace` из kit template и материализует входы в `runs/<run>/input` и `runs/<run>/workspace/prototype/input`.
+
+Для incremental run используется `--from-run <previous-successful-run>`.
+
+### 2. Очистка и синхронизация
+
+`run_pipeline.py --clean` сбрасывает runtime outputs/logs/usage/dist и workspace к baseline.
+
+`--sync-prompts` обновляет run prompt snapshots из активного kit-а.
+
+`--kit` синхронизирует в run architecture contract, generation rules, kit metadata и instructions.
+
+### 3. OpenCode plan
+
+Модель читает `prototype/input/...`, `instructions/...`, существующие files workspace и пишет:
+
+```text
+prototype/output/plan_proposal.json
+prototype/output/validation_plan_proposal.json
+```
+
+Pipeline собирает их в agent reports.
+
+### 4. Формальная валидация плана
+
+Python проверяет plan proposal на соответствие architecture contract и validation rules.
+
+После успешной проверки утвержденные artifacts записываются в workspace baseline:
+
+```text
+prototype/input/file_plan.json
+prototype/input/validation_plan.json
+```
+
+### 5. OpenCode plan-review
+
+Модель проверяет план как reviewer и пишет:
+
+```text
+prototype/output/plan_review.json
+```
+
+Review может завершиться `pass` или `warning`, если file plan безопасен и проблемы только metadata-level.
+
+### 6. OpenCode implementation
+
+Модель реализует только файлы из `prototype/input/file_plan.json` и пишет:
+
+```text
+prototype/output/implementation_report.json
+prototype/output/change_manifest.json
+```
+
+### 7. Сбор изменений и boundary check
+
+Python сравнивает workspace diff с утвержденным file plan и пишет:
+
+```text
+prototype/output/changed_files.json
+prototype/output/workspace.diff
+```
+
+Boundary должен быть `passed`. Unexpected files, forbidden paths, missing required files или policy violations делают запуск failed или repairable failure.
+
+### 8. UI static checks
+
+Python проверяет anchors, указанные validation plan и generated UI files, и пишет:
+
+```text
+prototype/output/ui_static_check_result.json
+```
+
+При `--strict-ui-checks` blockers считаются repairable failure.
+
+### 9. Validation
+
+Python запускает validation task активного kit-а:
+
+```bash
+task validate
+```
+
+Для текущего kit-а `task validate` выполняет:
+
+```text
+install → smoke → test → build → frontend-behavior
+```
+
+Результат:
+
+```text
+prototype/output/validation_result.json
+prototype/output/validation.stdout.log
+prototype/output/validation.stderr.log
+```
+
+### 10. Repair
+
+Если включен `--allow-repair`, validation/boundary/ui_static failures могут запустить OpenCode repair.
+
+Repair читает:
+
+```text
+prototype/output/repair_context.json
+prototype/output/validation_result.json
+prototype/output/changed_files.json
+prototype/output/ui_static_check_result.json
+```
+
+Repair пишет:
+
+```text
+prototype/output/repair_report.json
+```
+
+После repair повторяются collect changes, UI static checks и validation. Максимальное число попыток задается `--max-repair-attempts`.
+
+### 11. Traceability
+
+Python строит связь требований, changed files и validation checks:
+
+```text
+prototype/output/code_traceability.json
+```
+
+Успешные статусы требований:
+
+```text
+implemented_and_validated
+validated_unchanged
+```
+
+### 12. Summary, scenario result и export
+
+Pipeline пишет:
+
+```text
+runs/<run>/output/run_summary.json
+runs/<run>/output/scenario_result.json
+runs/<run>/output/run_report.md
+runs/<run>/dist/prototype_artifact.zip
+runs/<run>/dist/run_diagnostics.zip
+```
+
+## Отчеты фаз
+
+Обязательные OpenCode phase outputs:
+
+```text
+plan:
+  prototype/output/plan_proposal.json
+  prototype/output/validation_plan_proposal.json
+
+plan-review:
+  prototype/output/plan_review.json
+
+implementation:
+  prototype/output/implementation_report.json
+  prototype/output/change_manifest.json
+
+repair:
+  prototype/output/repair_report.json
+```
+
+Все phase reports должны быть JSON, кроме logs. Human-readable stdout не считается контрактом.
+
+## Основные runtime-результаты
+
+```text
+runs/<run>/output/run_summary.json          полный summary pipeline
+runs/<run>/output/scenario_result.json      основной итоговый контракт
+runs/<run>/output/run_report.md             markdown-отчет для человека
+runs/<run>/output/code_traceability.json    покрытие требований
+runs/<run>/output/changed_files.json        boundary и список изменений
+runs/<run>/output/ui_static_check_result.json
+runs/<run>/output/validation_result.json
+runs/<run>/output/agent_reports.json
+runs/<run>/output/pipeline_events.jsonl
+runs/<run>/output/workspace.diff
+runs/<run>/dist/prototype_artifact.zip
+runs/<run>/dist/run_diagnostics.zip
+```
+
+`scenario_result.json` содержит:
+
+- `final_status`;
+- `stage_status`;
+- `slice`;
+- `changed_files`;
+- `validation`;
+- `traceability`;
+- `repair`;
+- `artifacts`;
+- `usage`;
+- `inputs`.
+
+## Правила реализации для текущего kit-а
+
+### Границы file plan
+
+- Любой generated source/test file должен быть в `file_plan.json`.
+- Integration/skeleton files модифицируются только если разрешены contract/generation rules.
+- Runtime outputs и phase reports не считаются semantic generated code.
+- `dependency/package` files не меняются в обычных slices без явного плана и разрешения.
+
+### Backend / FastAPI / JSON storage
+
+Для feature API используется стандартный route contract:
+
+```python
+# backend/app/api/<resources>.py
+router = APIRouter(prefix="/<resources>")
+
+# backend/app/main.py
+app.include_router(<resources>_router, prefix="/api")
+```
+
+Публичный путь:
+
+```text
+/api/<resources>
+```
+
+Правила:
+
+- frontend и backend pytest используют тот же публичный путь;
+- API, frontend и tests используют одинаковые имена query params;
+- для query values с `+`, пробелами, `&`, `%`, `#` использовать `params={...}` в pytest и `URLSearchParams` во frontend;
+- service layer поддерживает dependency injection для JSON storage;
+- test storage должен использовать full temp path, не `Path(...).name`;
+- provider для FastAPI dependency override должен быть импортируемым напрямую из API module;
+- tests должны использовать `app.dependency_overrides[get_<resource>_service]`, а не FastAPI internals.
+
+### Frontend / React
+
+Текущий `frontend/src/App.jsx` рендерит первый route через `routes[0].component`. Поэтому `routeRegistry.js` должен экспортировать `component`, а не `element`.
+
+Для screen root, widgets, forms, fields, actions и items используются `data-prototype-id` anchors.
+
+Стандартные anchors:
+
+```text
+screen.<entity-screen>
+widget.<entity-search-or-filter>
+control.open-create-<entity>
+form.<entity>
+field.<entity>-<field>
+action.create-<entity>
+action.edit-<entity>
+item.<entity>
+```
+
+Clear/reset handlers не должны полагаться на синхронное обновление React state. Reset должен передавать явные значения в loader:
+
+```text
+setQuery('')
+setCategory('')
+fetchItems({ query: '', category: '' })
+```
+
+### Browser/e2e
+
+Browser/e2e проверяет пользовательский demo-flow, а не внутреннюю реализацию.
+
+Правила:
+
+- один compact Playwright spec на основной CRUD/list/search/filter flow;
+- test steps внутри одного `test(...)`, а не набор независимых brittle tests;
+- opener `control.open-create-*` только открывает форму;
+- submit/save находится на `action.create-*` или `action.edit-*`;
+- после create/edit ждать конкретную runtime-owned row/card;
+- после search/filter ждать matching row/card до count assertions;
+- после clear/reset проверять возврат нескольких runtime-owned rows/cards, отличающихся по сбрасываемому измерению;
+- после edit использовать current/edited values в следующих assertions/search;
+- значения, которые меняются между `test.step(...)`, объявлять как `let` в scope всего test-а;
+- не придумывать navigation links, если kit App их не рендерит;
+- если требование перечисляет несколько search/filter dimensions, UI и e2e должны демонстрировать эти dimensions.
+
+## Samples
+
+Текущие sample groups:
+
+```text
+samples/notes-app/
+samples/notes-app-slice-002/
+samples/notes-app-slice-003-confirm-delete/
+samples/notes-app-slice-004-note-count/
+samples/tasks-app/
+samples/customers-app/
+samples/products-app/
+```
+
+Типовой состав sample:
+
+```text
+requirements.json          требования
+scheme_model.json          схема/архитектурные элементы из requirements/design stage
+implementation_slice.json  compatibility view slice-а
+run_input.json             канонический вход pipeline
+mock_plan.json             описание mock data expectations
+data_sources.json          описание источников и mock/storage данных
+```
+
+`customers-app` проверяет customer directory: `full_name`, `email`, `phone`, `segment`, create, edit contact data, list, search by name/email/phone, no delete.
+
+`products-app` проверяет product catalog: `name`, `sku`, `category`, `price`, create, edit price/category, list, search by name/SKU, filter by category, no delete.
+
+## Проверенные команды запуска
+
+Products app:
 
 ```bash
 cd ~/opencode/codegenerator2
 
+rm -rf runs/run-004-products-app-browser
+
 python3 tools/prepare_run_from_scenario.py \
-  --scenario samples/notes-app/run_input.json \
-  --run runs/run-001-notes-app-browser \
+  --scenario samples/products-app/run_input.json \
+  --run runs/run-004-products-app-browser \
   --kit prototype-kits/react-python-json-browser
 
 python3 tools/run_pipeline.py \
-  --run runs/run-001-notes-app-browser \
+  --run runs/run-004-products-app-browser \
   --kit prototype-kits/react-python-json-browser \
   --sync-prompts \
   --clean \
   --clean-root-prototype-output \
   --strict-ui-checks \
   --model ollama-cloud/qwen3.5:397b \
-  --plan-prompt-file runs/run-001-notes-app-browser/opencode_plan_prompt.txt \
-  --review-prompt-file runs/run-001-notes-app-browser/opencode_plan_review_prompt.txt \
-  --implementation-prompt-file runs/run-001-notes-app-browser/opencode_implementation_prompt.txt \
+  --plan-prompt-file runs/run-004-products-app-browser/opencode_plan_prompt.txt \
+  --review-prompt-file runs/run-004-products-app-browser/opencode_plan_review_prompt.txt \
+  --implementation-prompt-file runs/run-004-products-app-browser/opencode_implementation_prompt.txt \
   --allow-repair \
-  --repair-prompt-file runs/run-001-notes-app-browser/opencode_repair_prompt.txt
+  --max-repair-attempts 2 \
+  --repair-prompt-file runs/run-004-products-app-browser/opencode_repair_prompt.txt
 ```
 
-Инкрементальные slice запускать только от successful baseline через `--from-run`.
-
-## Основные директории
-
-```text
-architecture-profiles/       Общие архитектурные профили.
-prototype-kits/              Активный kit, template, prompts, validation contracts.
-prototype_pipeline/          Python package основного pipeline.
-tools/                       CLI entrypoints и вспомогательные tools.
-samples/                     Входные сценарии и примеры slice.
-runs/                        Runtime-директории запусков; в git хранится только .gitkeep.
-```
-
-## Роли этапов
-
-- `prepare_run_from_scenario.py` — Python, готовит workspace из sample и optional previous run.
-- `plan` — OpenCode, пишет `plan_proposal.json` и `validation_plan_proposal.json`.
-- `validate_plan.py` — Python, проверяет формат и machine-readable safety boundary; не чинит архитектурный смысл плана. При успехе пишет `file_plan.json`, `validation_plan.json`.
-- `plan-review` — OpenCode, пишет `plan_review.json`.
-- `implementation` — OpenCode, меняет только файлы из `file_plan.json`.
-- `collect_changes.py` — Python, проверяет git diff против `file_plan.json`.
-- `run_ui_static_checks.py` — Python, проверяет `data-prototype-id` anchors по прямым `scheme_elements` каждого измененного UI-файла из `file_plan.json`. Checker должен собирать все blockers за один проход и считать стабильными только literal anchors: прямые JSX attributes или простые JSX literal alternatives, например `editing ? 'action.edit-note' : 'action.create-note'`.
-- `run_validation.py` — thin Python CLI wrapper for validation; staged execution, reporting, and workspace restore live under `tools/validation_runner/`.
-- `repair` — OpenCode, только при repairable failure и `--allow-repair`.
-- `build_code_traceability.py` — Python, строит traceability.
-- `scenario_result.py` — Python, собирает отчетный контракт.
-
-OpenCode может запускать отдельные диагностические команды во время implementation/repair, но официальный validation status задает только pipeline stage `Run validation`. Диагностика должна быть неинтерактивной: не использовать Playwright `--debug`, `--ui`, `codegen`, `show-trace` или headed mode.
-
-Во время repair не запускать повторные широкие diagnostic loops. Runner может остановить фазу, если агент многократно запускает дорогие команды вроде `npm run test:e2e`, `playwright test` или широкие `pytest`-циклы. Если workspace уже изменён, это controlled handoff: pipeline выполнит collect_changes, UI static и validation, а не потеряет попытку как простую ошибку. Делайте точечную правку по уже собранным логам и доверяйте post-repair validation.
-
-Если после implementation упали boundary или UI static checks, pipeline перед repair всё равно запускает staged validation как диагностический сбор. Repair должен видеть все уже наблюдаемые failures, а не чинить только первый слой ошибок. При `--allow-repair` pipeline по умолчанию допускает две repair-попытки (`--max-repair-attempts=2`): первая может устранить root backend/test failure, вторая — независимые ошибки, которые остались после повторной validation.
-
-Перед каждой repair-попыткой pipeline пишет `prototype/output/repair_context.json`. Агент должен читать его как компактный вход: там есть root/downstream failures, boundary/ui_static blockers, хвосты validation logs, relevant paths и краткая история предыдущих repair. Диагностика должна помогать получить рабочий код в рамках правил, а не только объяснить, почему текущий код не работает.
-
-First-pass generation should avoid common repair triggers by applying portable kit patterns: mutable/external state must be test-overridable, browser/e2e locators must be scoped and asynchronous APIs awaited, and UI assertions after async state transitions must wait for visible user state before derived count/absence checks. FastAPI dependency overrides and JSON temp storage are examples for this kit, not global rules for all stacks.
-
-Testing methods are cataloged in `prototype-kits/react-python-json-browser/instructions/testing/test-method-catalog.md`. Planner/implementation/repair should select from that catalog instead of inventing per-run testing styles when an existing method fits. For the current FastAPI+JSON kit, the mutable-state API method is a concrete contract: generated routes use a provider/dependency seam and pytest uses dependency overrides with temp storage. Add new method entries there as the supported scenario set grows: backend API pytest, service unit tests, smoke reruns, UI static anchors, Playwright CRUD/list/search, form submit, row action, filtered list, async transition, and count assertions.
-
-`tools/run_opencode_phase.py` дополнительно выставляет неинтерактивные env-переменные и добавляет workspace-local shim для `npm`/`npx`/`playwright`, чтобы блокировать интерактивные Playwright режимы. Не переносить эту защиту в generated code и не считать shim частью prototype output.
-
-## Правила доработки
-
-- Не возвращать legacy `expected_files.json` / `traceability_plan.json`.
-- Не добавлять business logic, имена файлов, имена тестов или предметные правила в Python pipeline.
-- Python pipeline проверяет контракты и границы; функциональное решение предлагает агент.
-- Dependency/package changes допустимы только через явный file plan, контрактно разрешённый package/config file и краткое обоснование. Не добавлять зависимости скрыто из implementation/repair.
-- `runs/` — runtime output. Не коммитить run-директории, логи, usage, dist, workspace.
-- `samples/` — коммитить только компактные входные сценарии.
-- `prototype-kits/*/template/` — не коммитить `node_modules`, build outputs, Playwright reports.
-- Документация проекта ведется на русском языке и должна оставаться связной, без накопления мелких version notes.
-- После патчей указывать измененные файлы, новые файлы, удаленные файлы и команды проверки.
-
-## Phase reports
-
-Для передачи результата между фазами использовать только файлы, требуемые prompt-ами: `plan_proposal.json`, `validation_plan_proposal.json`, `plan_review.json`, `implementation_report.json`, `change_manifest.json`, `repair_report.json`. Stdout-сводки не заменяют обязательные report files.
-
-## Типовые причины repair
-
-Repair пока часто чинит не архитектуру, а тестовый harness и согласование тестов с реализацией: API prefix/routes, изоляцию JSON mock storage, Playwright selectors, runtime-unique e2e data и неверные ожидания тестов. Повторяющиеся случаи лучше переводить в kit instructions/examples, а не в новые Python-checker blockers.
-
-Если repair внёс изменения, но агент не записал `repair_report.json`, pipeline может создать fallback-отчёт и всё равно выполнить post-repair проверки. Если repair внёс изменения, failed diagnostic tool calls также могут быть оставлены как warnings, чтобы post-repair boundary/validation стали источником истины. Такой fallback нужен только для устойчивости pipeline; содержательная оценка идёт по изменениям и результатам validation.
-
-## Проверка после изменений
+Customers app:
 
 ```bash
-python3 -m py_compile \
-  tools/*.py \
-  prototype_pipeline/*.py \
-  prototype_pipeline/cli/*.py \
-  prototype_pipeline/phases/*.py \
-  prototype_pipeline/reports/*.py \
-  prototype_pipeline/plan_validation/*.py
+cd ~/opencode/codegenerator2
 
+rm -rf runs/run-003-customers-app-browser
+
+python3 tools/prepare_run_from_scenario.py \
+  --scenario samples/customers-app/run_input.json \
+  --run runs/run-003-customers-app-browser \
+  --kit prototype-kits/react-python-json-browser
+
+python3 tools/run_pipeline.py \
+  --run runs/run-003-customers-app-browser \
+  --kit prototype-kits/react-python-json-browser \
+  --sync-prompts \
+  --clean \
+  --clean-root-prototype-output \
+  --strict-ui-checks \
+  --model ollama-cloud/qwen3.5:397b \
+  --plan-prompt-file runs/run-003-customers-app-browser/opencode_plan_prompt.txt \
+  --review-prompt-file runs/run-003-customers-app-browser/opencode_plan_review_prompt.txt \
+  --implementation-prompt-file runs/run-003-customers-app-browser/opencode_implementation_prompt.txt \
+  --allow-repair \
+  --max-repair-attempts 2 \
+  --repair-prompt-file runs/run-003-customers-app-browser/opencode_repair_prompt.txt
+```
+
+## Проверка после изменений проекта
+
+Для изменения Python pipeline:
+
+```bash
+python3 -m py_compile <changed-python-file>
 python3 tools/run_pipeline.py --help
 python3 tools/validate_plan.py --help
 ```
 
-## Следующий функциональный шаг
+Для изменения sample:
 
-После стабилизации sequence `SLICE-001 → SLICE-003 → SLICE-004` следующий шаг — accepted baseline / promotion flow:
-
-```text
-successful run → accepted current prototype state → next slice uses it automatically
+```bash
+python3 -m json.tool samples/<scenario>/run_input.json >/dev/null
+python3 tools/prepare_run_from_scenario.py \
+  --scenario samples/<scenario>/run_input.json \
+  --run /tmp/<run-name> \
+  --kit prototype-kits/react-python-json-browser
 ```
 
-### Self-check command discipline
+Для изменения patch archive:
 
-Agent-run commands are diagnostics only; pipeline validation remains the source of truth. Do not use raw `node --check` on `.jsx` files or Playwright ESM specs. Do not change package files just to satisfy such ad-hoc checks. Browser tests should exercise the UI/public API instead of reading backend mock-storage files directly.
+```bash
+unzip -t /path/to/archive.zip
+```
 
+Для проверки generated prototype внутри workspace:
 
-## OpenCode self-check limits
+```bash
+cd runs/<run>/workspace
+task validate
+```
 
-- Do not run full pipeline validation from OpenCode phases. The pipeline owns boundary, ui_static, and validation. Repair should use provided validation logs and only narrow diagnostics when they directly verify a small change.
-- Do not patch implementation source files from tests to simulate configuration. Prefer injection or dependency replacement patterns that keep generated tests isolated without mutating source files.
+## Правила доработки
 
-
-## Staged validation
-
-`tools/run_validation.py` owns canonical validation. For the `validate` task it runs install, smoke, backend pytest, frontend build, and browser/e2e as separate stages, records `stages` / `failed_stages` in `validation_result.json`, and restores semantic workspace files between stages so runtime JSON mock-data mutations and accidentally created semantic files do not contaminate later checks. It also marks downstream failures with `blocked_by_failed_stages`, `root_failed_stages`, and `downstream_failed_stages`; repair should prioritize root failed stages first and treat downstream browser/e2e failures as context while upstream backend/build failures remain unresolved. OpenCode repair should read all failed stages but should not call `tools/run_validation.py` itself.
-
-## Kit implementation patterns
-
-For recurring implementation shapes, prefer kit-level patterns over adding more prompt rules. The react-python-json-browser kit provides `instructions/implementation-patterns.md` as an index from artifact types to focused patterns, for example FastAPI JSON CRUD and React browser CRUD/list/search flows. Patterns are guidance only: they do not override `file_plan.json` and do not grant permission to create extra files. Test methods are part of those patterns: keep the method catalog authoritative and avoid duplicating long Playwright/pytest rules across prompts. Prompts may contain short reminders, but the reusable method contract belongs in the catalog/examples.
-
-
-
-## Контроль покрытия требований
-
-Валидация плана проверяет покрытие первичных требований. Каждый id из `implementation_slice.requirements` должен быть связан хотя бы с одним planned implementation file и хотя бы с одной validation check. Это не даёт получить зелёный запуск, в котором одно из требований молча исчезло из traceability. Coverage может быть прямым или выводиться из `scheme_model` и `screen_internal` ownership: если screen file владеет action через `design_delta.owning_artifact`, этот file покрывает requirement action-а.
-
-### Browser/e2e scope
-
-Keep browser/e2e validation lean. For one coherent CRUD/list/search screen, prefer one compact Playwright spec linked to multiple requirements over many independent specs. Put API edge cases and most negative cases in backend pytest unless the requirement is specifically about browser UI behavior. For create/edit UIs, distinguish opener controls from submitter actions, put scheme action anchors on the control that performs the action, and scope submit locators inside the form. After any async UI transition, wait for the expected visible state before count or absence assertions.
-
-
-Testing rule levels:
-- Core principles: requested behavior only, isolated tests, explicit async waits, read-only smoke/bootstrap checks.
-- Kit contracts: React/FastAPI/JSON uses FastAPI provider overrides, temp storage, Playwright `data-prototype-id`, and scoped form/field/item anchors.
-- Method contracts: entries in `instructions/testing/test-method-catalog.md` define the expected test shape for recurring cases.
-- Scenario examples: concrete notes/tasks/customer names and fields are examples only; do not promote them into generic prompts.
-
-For browser/e2e in this kit, a compact CRUD/list/search method is a single user journey with steps. It is not permission to add many independent browser tests or unrequested delete/edge-case coverage. Generated forms should expose auxiliary `form.*` and `field.*` anchors so tests do not depend on fragile label/text/CSS chains.
-
-### v72: request contracts and e2e success signals
-
-Keep generated rules at the correct level. For the React + FastAPI + JSON kit, create/update API operations should have one request payload contract across backend, frontend, and pytest: JSON request bodies for create/update, query parameters for list/search/filter. Do not let pytest and the browser UI use different shapes for the same endpoint.
-
-For Playwright submit flows, wait for the requested domain outcome, not for incidental UI cleanup. A form may remain open after submit; e2e should assert the created or edited row/card/status/filter result unless form closing is explicitly required.
-
-
-## v74 notes: skeleton guards and injected-resource identity
-
-- Existing files must be planned as `modify`, not `create`. Plan validation may only coerce `create` to `modify` for known empty kit skeleton paths such as package `__init__.py` bootstrap files. This is not a generic rule for any empty file. Unknown empty files and non-empty existing files remain create blockers.
-- Mutable-state tests rely on injected resources. Services must preserve the identity of the injected resource handle/locator/adapter/config and must not collapse it to a default resource, basename, global singleton, or production storage. The JSON `storage_path` case is only one example of this general rule.
-- Browser/e2e assertions for enum/status/category fields must match the intended user-visible label, not blindly assert the raw API enum value.
-
-
-## v75 notes: opener/action anchors and filtered-list waits
-
-- Keep opener controls and scheme submit actions distinct in generated UI and tests. A button that only opens a create form uses `control.open-create-<entity>`; the control that actually creates the record uses `action.create-<entity>` inside `form.<entity>`.
-- Filter/search e2e assertions should wait for a runtime-owned matching row/card to become visible before reading collection counts. A transient zero count during loading should normally be fixed in the Playwright wait, not by changing product loading behavior unless the requirement specifies that UX.
+- Не добавлять demo-specific правила для одного sample, если проблема не сформулирована как общий kit-level pattern.
+- Не превращать Python checks в replacement для LLM planning.
+- Не менять generated app skeleton без отражения в kit rules/prompts.
+- Не отправлять diff/patch files пользователю без прямой просьбы.
+- После каждого patch handoff указывать список измененных файлов.
+- Для artifacts давать ссылку на zip и коротко указывать проверки.

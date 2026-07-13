@@ -14,7 +14,10 @@ test('user can create, edit, list, and search records', async ({ page }) => {
   const runtimeTitle = `Runtime title ${Date.now()}`;
   const runtimeBody = `Runtime body ${Date.now()}`;
   const updatedTitle = `${runtimeTitle} updated`;
+  let currentTitle = runtimeTitle;
+  const currentBody = runtimeBody;
 
+  // Use the real app entry. In this kit the template renders routes[0].component at the app root.
   await page.goto('/');
   await expect(page.getByTestId('screen.note-list')).toBeVisible();
 
@@ -36,18 +39,34 @@ test('user can create, edit, list, and search records', async ({ page }) => {
   await createdRow.getByTestId('action.edit-note').click();
   const editForm = page.getByTestId('form.note').filter({ has: page.getByTestId('action.edit-note') });
   await expect(editForm).toBeVisible();
-  await editForm.getByTestId('field.note-title').fill(updatedTitle);
+  currentTitle = updatedTitle;
+  await editForm.getByTestId('field.note-title').fill(currentTitle);
   await editForm.getByTestId('action.edit-note').click();
 
-  const updatedRow = page.getByTestId('item.note').filter({ hasText: updatedTitle });
+  const updatedRow = page.getByTestId('item.note').filter({ hasText: currentTitle });
   await expect(updatedRow).toBeVisible();
 
   const search = page.getByTestId('widget.note-search').getByRole('textbox');
-  await search.fill(updatedTitle);
+  await search.fill(currentTitle);
   await expect(updatedRow).toBeVisible();
+
+  // If the requirement names several searchable fields, cover the user-visible dimensions.
+  // For a single generic search box, use current values from different fields (for example title and body).
+  await search.fill('');
+  await search.fill(currentBody);
+  const bodySearchRow = page.getByTestId('item.note').filter({ hasText: currentBody });
+  await expect(bodySearchRow).toBeVisible();
+  const bodySearchCount = await page.getByTestId('item.note').count();
+  expect(bodySearchCount).toBeGreaterThanOrEqual(1);
 
   await search.fill('');
   await expect(updatedRow).toBeVisible();
+  // If this flow created a contrast row for search, wait for that runtime-owned row too
+  // before asserting a full-list count.
+  // await expect(contrastRow).toBeVisible();
+
+  // Values reused across test.step(...) sections should be declared in the parent test scope
+  // and updated when an edit changes a field used later for search/lookup.
 
   // If a status/category filter exists, wait for a matching runtime-owned row before count assertions.
   const filter = page.getByTestId('widget.note-search');
@@ -89,4 +108,28 @@ Prefer the requested domain outcome:
 await form.getByTestId('action.create-note').click();
 const createdRow = page.getByTestId('item.note').filter({ hasText: runtimeTitle });
 await expect(createdRow).toBeVisible();
+```
+
+
+## Clear/reset search example
+
+For a generated Clear/Reset control, test the actual user action from a non-empty state. Do not pre-empty the input before clicking Clear. When a category/status/type filter is present, create or use two runtime-owned rows in different filter values and prove both return after reset:
+
+```javascript
+await test.step('Clear search and verify unfiltered list', async () => {
+  const search = page.getByTestId('widget.customer-search');
+
+  // Enter a real non-empty search state first.
+  await search.getByTestId('field.customer-search-query').fill(currentEmail);
+  await search.getByRole('button', { name: 'Search' }).click();
+  await expect(page.getByTestId('item.customer').filter({ hasText: currentEmail })).toBeVisible();
+
+  // Click the product Clear control. Do not pre-empty the input.
+  await search.getByTestId('control.clear-search').click();
+  await expect(search.getByTestId('field.customer-search-query')).toHaveValue('');
+
+  // Prove reset with two runtime-owned rows, including one that was not visible under the search.
+  await expect(page.getByTestId('item.customer').filter({ hasText: currentName })).toBeVisible();
+  await expect(page.getByTestId('item.customer').filter({ hasText: secondName })).toBeVisible();
+});
 ```

@@ -1,0 +1,149 @@
+{
+  "scheme_id": "SCH-PRODUCTS-001",
+  "title": "Product catalog prototype scheme",
+  "elements": [
+    {
+      "id": "screen.product-catalog",
+      "type": "screen",
+      "name": "Product Catalog",
+      "requirements": [
+        "REQ-003",
+        "REQ-004",
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "widget.product-search-filter",
+      "type": "widget",
+      "name": "Product Search and Category Filter",
+      "requirements": [
+        "REQ-004",
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "action.create-product",
+      "type": "action",
+      "name": "Create Product",
+      "requirements": [
+        "REQ-001"
+      ]
+    },
+    {
+      "id": "action.edit-product",
+      "type": "action",
+      "name": "Edit Product",
+      "requirements": [
+        "REQ-002"
+      ]
+    },
+    {
+      "id": "component.product-service",
+      "type": "component",
+      "name": "Product Service",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004",
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "api.products",
+      "type": "api",
+      "name": "Products API",
+      "resource": "products",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004",
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "data.product",
+      "type": "data_entity",
+      "name": "Product",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sku",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "hardware",
+            "software",
+            "service"
+          ],
+          "required": true
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "required": true
+        }
+      ],
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004",
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004",
+        "REQ-005"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "screen.product-catalog",
+      "to": "widget.product-search-filter",
+      "type": "contains"
+    },
+    {
+      "from": "screen.product-catalog",
+      "to": "component.product-service",
+      "type": "uses"
+    },
+    {
+      "from": "component.product-service",
+      "to": "api.products",
+      "type": "exposed_by"
+    },
+    {
+      "from": "component.product-service",
+      "to": "data.product",
+      "type": "reads_writes"
+    },
+    {
+      "from": "data.product",
+      "to": "mock.products-json",
+      "type": "stored_in"
+    }
+  ]
+}

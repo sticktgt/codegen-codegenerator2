@@ -1,0 +1,48 @@
+{
+  "slice_id": "SLICE-001",
+  "title": "Product catalog",
+  "requirements": [
+    "REQ-001",
+    "REQ-002",
+    "REQ-003",
+    "REQ-004",
+    "REQ-005"
+  ],
+  "scheme_elements": [
+    "screen.product-catalog",
+    "widget.product-search-filter",
+    "action.create-product",
+    "action.edit-product",
+    "component.product-service",
+    "api.products",
+    "data.product",
+    "mock.products-json"
+  ],
+  "data_sources": [
+    "mock.products-json"
+  ],
+  "allowed_scope": [
+    "create product",
+    "edit product price and category",
+    "list products",
+    "search products by name or SKU",
+    "filter products by category",
+    "local JSON mock storage"
+  ],
+  "forbidden_scope": [
+    "authentication",
+    "external integrations",
+    "database migrations",
+    "inventory reservations",
+    "supplier integrations",
+    "discount rules",
+    "delete product"
+  ],
+  "acceptance_criteria": [
+    "User can see a list of products with name, SKU, category, and price.",
+    "User can create a product with name, SKU, category, and price.",
+    "User can edit an existing product's price and category.",
+    "User can search products by name or SKU.",
+    "User can filter products by category."
+  ]
+}

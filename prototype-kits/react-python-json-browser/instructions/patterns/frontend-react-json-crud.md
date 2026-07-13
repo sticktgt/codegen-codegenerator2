@@ -5,6 +5,7 @@ Use this pattern for small React screens backed by the kit FastAPI JSON CRUD ser
 ## Component shape
 
 - Keep route wiring in `frontend/src/routes/routeRegistry.js` or another planned integration file.
+- Match the current kit route registry contract exactly. In this kit `frontend/src/App.jsx` reads `routes[0].component`; generated route entries must use `component: ScreenComponent`, not `element`, and should not invent navigation links unless the template actually renders navigation. Prefer the existing app entry route (`/`) unless the baseline template already supports real client routing for the planned path.
 - Keep the main user journey in the planned screen file. For simple CRUD/list/search screens, create/edit handlers may be screen-internal instead of separate action files.
 - Use a widget file for reusable visual/input pieces only when planned, such as `NoteSearch.jsx`.
 - Match the backend public API path exactly. If FastAPI exposes `/api/notes`, the frontend must call `/api/notes`.
@@ -32,7 +33,7 @@ Design the UI so the catalog methods in `instructions/testing/test-method-catalo
 - The edit action is inside the item/card for the record it edits.
 - Search/filter input lives inside the search widget anchor.
 - After create/edit/search/filter, the UI exposes a visible row/card state that tests can wait for before count or absence assertions. For filters, the visible state should be a runtime-owned row/card that is expected to match the active filter.
-- After an edit changes the title/name used to locate a row, subsequent UI assertions should locate the row by the edited value or by a stable id, not by the pre-edit value.
+- After an edit changes any visible value used to locate or search a row, subsequent UI assertions should locate/search by the current edited value or by a stable id, not by the pre-edit value. This applies to email/phone/status/category/date fields as well as title/name.
 
 Avoid page designs where browser tests must rely on global text matches, ambiguous `Create`/`Edit` buttons, or hidden implicit state transitions.
 
@@ -65,6 +66,40 @@ await page.getByTestId('action.create-task').click();
 const form = page.getByTestId('screen.task-board');
 await form.getByText('Title:').locator('input[type="text"]').fill(runtimeTitle);
 ```
+
+## Search dimension coverage
+
+Do not reduce an explicit multi-field search requirement to the first convenient field. If requirements say users can search by several fields such as name, email, or phone, implement one of these demo-safe UI shapes:
+
+- a single free-text search input whose backend/service search checks all named fields; or
+- explicit user-visible controls for each named field.
+
+The browser/e2e flow must prove the same user-visible search dimensions. For a small list of named fields, exercise each one at least once with runtime-owned records. Backend API support for extra query parameters is not enough if the UI only exposes search by one field.
+
+When a generic search box covers multiple fields, the screen implementation must apply the same search query to all named user-visible fields or call an API that does so. Do not implement the UI filter for name/email while the requirement and test also demonstrate phone, category, code, or another field. The e2e should wait for a row containing the same field value it searched for before using any count assertion.
+
+Search/filter reset controls must perform a real user-visible reset. When the UI has a Clear/Reset control, its handler should clear every user-visible search/filter state and reload the unfiltered list using explicit reset arguments. Do not rely on React state having updated synchronously before calling a loader that reads state. Prefer a loader shaped like `fetchItems({ query = '', category = '' })`, then implement reset as `setSearchQuery(''); setCategoryFilter(''); fetchItems({ query: '', category: '' });`. Avoid `setSearchQuery(''); setCategoryFilter(''); fetchItems();` when `fetchItems()` reads `searchQuery` or `categoryFilter` from React state; that can leave the list filtered even though the controls look cleared. The user should be able to click Clear while search/filter controls are non-empty and immediately see the unfiltered runtime-owned rows/cards.
+
+
+Recommended shape for multi-control search/filter screens:
+
+```javascript
+const fetchItems = async ({ query = searchQuery, category = categoryFilter } = {}) => {
+  const params = new URLSearchParams();
+  if (query) params.append('q', query);
+  if (category) params.append('category', category);
+  const response = await fetch(`/api/items?${params}`);
+  if (response.ok) setItems(await response.json());
+};
+
+const handleClearSearch = () => {
+  setSearchQuery('');
+  setCategoryFilter('');
+  fetchItems({ query: '', category: '' });
+};
+```
+
+
 
 ## Browser flow scope
 
