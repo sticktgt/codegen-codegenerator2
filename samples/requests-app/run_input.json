@@ -1,0 +1,50 @@
+{
+  "run_input_version": 1,
+  "source": "requirements_stage",
+  "slice": {
+    "slice_id": "SLICE-001",
+    "title": "Service requests board",
+    "requirement_ids": [
+      "REQ-001",
+      "REQ-002",
+      "REQ-003",
+      "REQ-004",
+      "REQ-005",
+      "REQ-006"
+    ],
+    "goal": "Build the initial service requests board prototype: list requests, create request records, edit status/priority, search by title or requester, and filter by status and priority using local JSON mock storage.",
+    "change_type": "create_new",
+    "selected_existing_elements": [],
+    "preserve_existing_behavior_by_default": true,
+    "acceptance_criteria": [
+      "User can see a list of requests with title, requester, status, priority, and due date.",
+      "User can create a request with title, requester, status, priority, and due date.",
+      "User can edit an existing request's status and priority.",
+      "User can search requests by title or requester.",
+      "User can filter requests by status.",
+      "User can filter requests by priority.",
+      "The main screen and interactive controls have stable data-prototype-id anchors linked to scheme elements.",
+      "The prototype uses local JSON mock storage and does not require external integrations."
+    ],
+    "constraints": [
+      "No authentication.",
+      "No external integrations.",
+      "No database migrations.",
+      "No workflow automation or notifications in this slice.",
+      "No attachments or comments in this slice.",
+      "Use local JSON mock storage from the sample mock plan.",
+      "No new dependencies beyond the selected kit.",
+      "Do not implement delete request in this slice."
+    ]
+  },
+  "requirements_file": "requirements.json",
+  "current_prototype": {
+    "scheme_model_file": "scheme_model.json",
+    "data_sources_file": "data_sources.json",
+    "mock_plan_file": "mock_plan.json"
+  },
+  "notes": [
+    "This scenario intentionally differs from customers-app and products-app: it has two enum filters, a due_date field, and editable workflow-like status/priority fields.",
+    "Use it to check whether CRUD/list/search/filter contracts generalize beyond contact and catalog examples."
+  ]
+}

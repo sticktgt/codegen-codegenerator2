@@ -1,0 +1,64 @@
+{
+  "run_input_version": 1,
+  "source": "requirements_stage",
+  "slice": {
+    "slice_id": "SLICE-003",
+    "title": "Add product stock adjustment action and availability labels",
+    "requirement_ids": [
+      "REQ-008",
+      "REQ-009"
+    ],
+    "goal": "Extend the stock-enabled products-app prototype with an item-level Adjust Stock action and derived availability labels.",
+    "change_type": "extend_existing",
+    "selected_existing_elements": [
+      "screen.product-catalog",
+      "widget.product-search-filter",
+      "action.create-product",
+      "action.edit-product",
+      "component.product-service",
+      "api.products",
+      "data.product",
+      "mock.products-json"
+    ],
+    "preserve_existing_behavior_by_default": true,
+    "acceptance_criteria": [
+      "Existing product catalog create, edit, list, name/SKU search, category filter, stock quantity, and availability filter behavior remains working.",
+      "User can open a compact Adjust Stock control from a product row/card without opening the full edit product form.",
+      "User can set a new stock quantity through the Adjust Stock control and see the changed stock quantity in the list.",
+      "Product list displays a derived availability label for each product: In Stock, Low Stock, or Out of Stock.",
+      "Availability filter behavior from SLICE-002 is preserved: in stock means stock_quantity greater than 0 and out of stock means stock_quantity equals 0.",
+      "The incremental run modifies the existing product catalog implementation instead of creating a separate stock or warehouse screen."
+    ],
+    "constraints": [
+      "Use --from-run with a successful stock-enabled products-app run as baseline, for example runs/run-006-products-add-stock.",
+      "Preserve existing /api/products route and root product catalog screen.",
+      "Preserve existing name/SKU search, category filter, stock quantity create/edit, and availability filter behavior.",
+      "Prefer modify operations for existing product files over duplicate create operations.",
+      "Implement action.adjust-stock as screen-internal behavior inside the existing ProductCatalogScreen unless the approved file plan explicitly allows a separate artifact.",
+      "No delete product behavior.",
+      "No inventory reservation, supplier integration, order management, stock history, or warehouse workflow.",
+      "No new dependencies.",
+      "Continue using local JSON mock storage."
+    ],
+    "non_goals": [
+      "Inventory reservations, stock history, or audit log.",
+      "Separate warehouse or stock management screen.",
+      "External systems or database migrations.",
+      "Changing existing availability filter semantics."
+    ],
+    "notes": [
+      "This scenario is intended to validate a second incremental modification through prepare_run_from_scenario.py --from-run.",
+      "The baseline should be a successful run of samples/products-app-add-stock, for example runs/run-006-products-add-stock."
+    ]
+  },
+  "requirements_file": "requirements.json",
+  "current_prototype": {
+    "scheme_model_file": "scheme_model.json",
+    "data_sources_file": "data_sources.json",
+    "mock_plan_file": "mock_plan.json"
+  },
+  "notes": [
+    "This is an incremental scenario, not a greenfield product catalog.",
+    "Use it after a successful products-app-add-stock run to verify that the pipeline can preserve and extend already extended generated code."
+  ]
+}

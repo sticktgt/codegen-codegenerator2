@@ -81,6 +81,31 @@ test('user can create, edit, list, and search records', async ({ page }) => {
 });
 ```
 
+
+## Table row value assertions
+
+When the UI renders a table, locate the runtime-owned row first, then assert the intended field or table cell. Do not use `row.getByText()` for short numeric values such as stock quantity, price fragments, or repeated status/category labels. Those values can appear in multiple cells and cause strict-mode failures.
+
+Prefer a stable field/display anchor when the UI provides one:
+
+```js
+const productRow = page.getByTestId('item.product').filter({ hasText: currentSku });
+await expect(productRow.getByTestId('field.product-stock-quantity-display')).toHaveText(String(currentStock));
+```
+
+If the generated table does not provide per-field display anchors, use the known column inside the scoped row:
+
+```js
+const productRow = page.getByTestId('item.product').filter({ hasText: currentSku });
+await expect(productRow.locator('td').nth(4)).toContainText(String(currentStock));
+```
+
+Avoid ambiguous text checks for repeated values:
+
+```js
+await expect(productRow.getByText('10')).toBeVisible(); // Wrong: may match several cells.
+```
+
 Avoid this fragile row-action selector:
 
 ```js

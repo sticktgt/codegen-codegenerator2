@@ -1,0 +1,62 @@
+{
+  "run_input_version": 1,
+  "source": "requirements_stage",
+  "slice": {
+    "slice_id": "SLICE-002",
+    "title": "Add product stock tracking",
+    "requirement_ids": [
+      "REQ-006",
+      "REQ-007"
+    ],
+    "goal": "Extend the existing products-app prototype with stock quantity on product records and an availability filter based on stock quantity.",
+    "change_type": "extend_existing",
+    "selected_existing_elements": [
+      "screen.product-catalog",
+      "widget.product-search-filter",
+      "action.create-product",
+      "action.edit-product",
+      "component.product-service",
+      "api.products",
+      "data.product",
+      "mock.products-json"
+    ],
+    "preserve_existing_behavior_by_default": true,
+    "acceptance_criteria": [
+      "Existing product catalog create, edit, list, name/SKU search, and category filter behavior remains working.",
+      "User can enter stock quantity when creating a product.",
+      "User can edit stock quantity for an existing product.",
+      "Product list displays stock quantity or a clear stock/availability indication for each product.",
+      "User can filter products by availability: in stock and out of stock.",
+      "The incremental run modifies the existing product catalog implementation instead of recreating a separate product app."
+    ],
+    "constraints": [
+      "Use --from-run with a successful products-app run as baseline.",
+      "Preserve existing /api/products route and root product catalog screen.",
+      "Preserve existing name/SKU search and category filter behavior.",
+      "Prefer modify operations for existing product files over duplicate create operations.",
+      "No delete product behavior.",
+      "No inventory reservation, supplier integration, order management, or warehouse workflow.",
+      "No new dependencies.",
+      "Continue using local JSON mock storage."
+    ],
+    "non_goals": [
+      "Inventory reservations or stock history.",
+      "Separate warehouse or stock management screen.",
+      "External systems or database migrations."
+    ],
+    "notes": [
+      "This scenario is intended to validate incremental modification through prepare_run_from_scenario.py --from-run.",
+      "The baseline should be a successful run of samples/products-app, for example runs/run-004-products-app-browser."
+    ]
+  },
+  "requirements_file": "requirements.json",
+  "current_prototype": {
+    "scheme_model_file": "scheme_model.json",
+    "data_sources_file": "data_sources.json",
+    "mock_plan_file": "mock_plan.json"
+  },
+  "notes": [
+    "This is an incremental scenario, not a greenfield product catalog.",
+    "Use it after a successful products-app run to verify that the pipeline can preserve and extend existing generated code."
+  ]
+}

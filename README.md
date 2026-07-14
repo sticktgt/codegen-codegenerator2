@@ -125,7 +125,8 @@ CLI entrypoints и helper tools.
 
 Основные команды:
 
-- `tools/prepare_run_from_scenario.py` — подготовка run из `samples/<scenario>/run_input.json`.
+- `tools/prepare_run_from_scenario.py` — подготовка run из `samples/<scenario>/run_input.json`; materialize scenario input и вызывает подготовку workspace.
+- `tools/prepare_workspace.py` — низкоуровневая подготовка workspace: копирование kit template или baseline из предыдущего run, overlay kit runtime files, копирование `prototype/input`, создание git baseline commit.
 - `tools/run_pipeline.py` — совместимый entrypoint основного pipeline.
 - `tools/run_opencode_phase.py` — запуск одной OpenCode-фазы с prompt prefix и expected outputs.
 - `tools/validate_plan.py` — formal validation `plan_proposal.json` и `validation_plan_proposal.json`.
@@ -153,6 +154,7 @@ samples/notes-app-slice-004-note-count/
 samples/tasks-app/
 samples/customers-app/
 samples/products-app/
+samples/requests-app/
 ```
 
 Типовой состав scenario:
@@ -434,24 +436,52 @@ examples/search-filter/README.md
 
 ### `template/`
 
-Минимальный skeleton workspace:
+`template/` — минимальный skeleton проекта прототипа. Он копируется в `runs/<run>/workspace` при greenfield-подготовке run-а.
+
+Состав skeleton-а:
 
 ```text
-template/backend/app/main.py
-template/backend/app/smoke.py
-template/backend/requirements.txt
-template/backend/tests/test_smoke.py
-template/frontend/src/App.jsx
-template/frontend/src/main.jsx
-template/frontend/src/routes/routeRegistry.js
-template/frontend/package.json
-template/frontend/playwright.config.js
-template/frontend/vite.config.js
-template/prototype/input/.gitkeep
-template/prototype/output/.gitkeep
+template/
+  backend/
+    requirements.txt
+    app/
+      __init__.py
+      main.py
+      smoke.py
+      api/__init__.py
+      models/__init__.py
+      services/__init__.py
+      storage/__init__.py
+    tests/
+      __init__.py
+      test_smoke.py
+  frontend/
+    package.json
+    playwright.config.js
+    vite.config.js
+    e2e/.gitkeep
+    src/
+      App.jsx
+      main.jsx
+      actions/.gitkeep
+      api/.gitkeep
+      routes/routeRegistry.js
+      screens/.gitkeep
+      widgets/.gitkeep
+  prototype/
+    input/.gitkeep
+    output/.gitkeep
 ```
 
-Generated code добавляется поверх этого skeleton-а.
+Назначение skeleton-а:
+
+- дать рабочий backend/frontend baseline до генерации feature-кода;
+- зафиксировать integration files, которые agent должен не создавать заново, а модифицировать;
+- дать `Taskfile.yml` validation commands через kit-level runtime files;
+- дать `App.jsx` и `routeRegistry.js` contract для подключения первого generated screen;
+- дать smoke test и `/health` endpoint для проверки, что baseline backend импортируется.
+
+Generated code добавляется поверх skeleton-а на этапе OpenCode implementation. В greenfield slice обычно создаются новые owned-файлы в `backend/app/api`, `backend/app/services`, `backend/app/models`, `backend/app/storage`, `backend/tests`, `frontend/src/screens`, `frontend/src/widgets`, `frontend/e2e`, а skeleton/integration files изменяются по file plan.
 
 ## Samples подробно
 
@@ -525,6 +555,202 @@ backend API: /api/products
 backend service/model/storage
 backend pytest
 browser/e2e CRUD/list/search/filter flow
+```
+
+### `requests-app`
+
+Назначение: проверить переносимость правил на сценарий со статусами, приоритетами и датой.
+
+Поля:
+
+```text
+title
+requester
+status
+priority
+due_date
+```
+
+Status enum:
+
+```text
+new
+in_progress
+done
+```
+
+Priority enum:
+
+```text
+low
+normal
+high
+```
+
+Требования:
+
+- create service request;
+- edit status and priority;
+- list requests;
+- search by title or requester;
+- filter by status;
+- filter by priority;
+- delete не требуется.
+
+Ожидаемые generated элементы:
+
+```text
+frontend screen: request board
+search/filter widget или screen-internal controls
+backend API: /api/requests
+backend service/model/storage
+backend pytest
+browser/e2e CRUD/list/search/filter flow
+```
+
+## Как формируется workspace
+
+Run workspace находится в:
+
+```text
+runs/<run>/workspace/
+```
+
+Workspace создается до OpenCode-фаз. OpenCode не создает структуру проекта с нуля. Он работает внутри уже подготовленного workspace.
+
+### Greenfield workspace
+
+Для обычного нового scenario используется команда:
+
+```bash
+python3 tools/prepare_run_from_scenario.py \
+  --scenario samples/<scenario>/run_input.json \
+  --run runs/<run> \
+  --kit prototype-kits/react-python-json-browser
+```
+
+Последовательность подготовки:
+
+```text
+tools/prepare_run_from_scenario.py
+  → читает canonical run_input.json
+  → определяет sample directory
+  → materialize scenario input files
+  → вызывает tools/prepare_workspace.py
+
+tools/prepare_workspace.py
+  → создает runs/<run>/workspace
+  → копирует prototype-kits/react-python-json-browser/template/* в workspace
+  → копирует runtime kit files: AGENTS.md, Taskfile.yml, opencode.json, agents/, instructions/, prompts/, examples/
+  → копирует kit.yaml, generation-rules.yaml, architecture-contract.yaml в workspace/prototype/input
+  → копирует scenario files в workspace/prototype/input
+  → инициализирует git repository внутри workspace
+  → создает baseline commit
+```
+
+После подготовки greenfield workspace содержит только skeleton и input artifacts. Feature-код еще не создан.
+
+### Что делает OpenCode после подготовки workspace
+
+```text
+OpenCode plan
+  → читает workspace skeleton, prototype/input и instructions
+  → пишет prototype/output/plan_proposal.json
+  → пишет prototype/output/validation_plan_proposal.json
+
+formal plan validation
+  → проверяет plan proposal
+  → копирует утвержденные планы в prototype/input/file_plan.json и prototype/input/validation_plan.json
+
+OpenCode implementation
+  → создает owned generated files
+  → модифицирует integration/skeleton files, разрешенные file_plan.json
+  → пишет implementation_report.json и change_manifest.json
+```
+
+Для текущего kit-а типичные generated files:
+
+```text
+backend/app/api/<resources>.py
+backend/app/services/<resource>_service.py
+backend/app/models/<entity>.py
+backend/app/storage/<resource>_mock.json
+backend/tests/test_<resource>_api.py
+frontend/src/screens/<Screen>.jsx
+frontend/src/widgets/<Widget>.jsx
+frontend/e2e/<spec>.js
+```
+
+Типичные modified skeleton/integration files:
+
+```text
+backend/app/main.py
+backend/app/storage/__init__.py
+frontend/src/routes/routeRegistry.js
+```
+
+### Incremental workspace из предыдущего run
+
+Для последовательной доработки существующего прототипа используется `--from-run`:
+
+```bash
+python3 tools/prepare_run_from_scenario.py \
+  --from-run runs/<previous-successful-run> \
+  --scenario samples/<next-slice>/run_input.json \
+  --run runs/<new-run> \
+  --kit prototype-kits/react-python-json-browser
+```
+
+В этом режиме baseline нового workspace формируется не из пустого `template/`, а из workspace предыдущего run-а.
+
+Последовательность:
+
+```text
+tools/prepare_workspace.py
+  → копирует runs/<previous-successful-run>/workspace в runs/<new-run>/workspace
+  → удаляет runtime outputs и transient directories
+  → overlay текущих kit runtime files, instructions и prompts
+  → заменяет prototype/input на input нового scenario
+  → инициализирует новый git baseline commit
+```
+
+Код, созданный в предыдущем успешном run-е, остается в новом workspace и становится baseline. Новый slice должен планировать изменения поверх него: `modify` существующих feature-файлов, `create` новых owned-файлов только когда это действительно новый экран, новый ресурс, новый тестовый файл или новый слой реализации.
+
+`--clean` в `tools/run_pipeline.py` не отменяет incremental baseline. Он делает reset/clean внутри уже подготовленного workspace и возвращает workspace к baseline commit нового run-а.
+
+### Что должно отличать incremental scenario
+
+Incremental scenario должен описывать следующий slice, а не повторять весь baseline. В `run_input.json` используется `change_type: "extend_existing"` или аналогичный смысловой признак текущего slice, а требования описывают только новую доработку.
+
+Пример:
+
+```json
+{
+  "slice": {
+    "slice_id": "SLICE-002",
+    "title": "Add product stock tracking",
+    "change_type": "extend_existing",
+    "requirement_ids": ["REQ-006", "REQ-007"],
+    "selected_existing_elements": [
+      "screen.product-catalog",
+      "api.products",
+      "component.product-service",
+      "data.product"
+    ],
+    "preserve_existing_behavior_by_default": true
+  }
+}
+```
+
+Ожидаемый file plan для такого slice обычно содержит:
+
+```text
+modify backend/app/models/product.py
+modify backend/app/services/product_service.py
+modify backend/app/api/products.py
+modify frontend/src/screens/ProductCatalogScreen.jsx
+modify backend/tests/test_products_api.py
+modify frontend/e2e/<existing-or-new-spec>.js
 ```
 
 ## Pipeline: этапы, входы, выходы и исполнитель
@@ -709,9 +935,11 @@ python3 tools/prepare_run_from_scenario.py \
 
 - `--scenario` — путь к canonical `run_input.json`.
 - `--sample` — директория для файлов, referenced by `run_input.json`; по умолчанию parent directory scenario.
-- `--from-run` — предыдущий успешный run для incremental baseline.
+- `--from-run` — предыдущий успешный run для incremental baseline; если указан, workspace нового run-а копируется из предыдущего workspace, а не из пустого `template/`.
 - `--run` — новая runtime-директория.
 - `--kit` — активный kit.
+
+`prepare_run_from_scenario.py` является удобной командой верхнего уровня. Низкоуровневую materialization workspace выполняет `tools/prepare_workspace.py`; напрямую его обычно запускать не нужно.
 
 ### Запуск pipeline
 
@@ -809,6 +1037,34 @@ python3 tools/run_pipeline.py \
   --allow-repair \
   --max-repair-attempts 2 \
   --repair-prompt-file runs/run-003-customers-app-browser/opencode_repair_prompt.txt
+```
+
+### Пример запуска requests-app
+
+```bash
+cd ~/opencode/codegenerator2
+
+rm -rf runs/run-005-requests-app-browser
+
+python3 tools/prepare_run_from_scenario.py \
+  --scenario samples/requests-app/run_input.json \
+  --run runs/run-005-requests-app-browser \
+  --kit prototype-kits/react-python-json-browser
+
+python3 tools/run_pipeline.py \
+  --run runs/run-005-requests-app-browser \
+  --kit prototype-kits/react-python-json-browser \
+  --sync-prompts \
+  --clean \
+  --clean-root-prototype-output \
+  --strict-ui-checks \
+  --model ollama-cloud/qwen3.5:397b \
+  --plan-prompt-file runs/run-005-requests-app-browser/opencode_plan_prompt.txt \
+  --review-prompt-file runs/run-005-requests-app-browser/opencode_plan_review_prompt.txt \
+  --implementation-prompt-file runs/run-005-requests-app-browser/opencode_implementation_prompt.txt \
+  --allow-repair \
+  --max-repair-attempts 2 \
+  --repair-prompt-file runs/run-005-requests-app-browser/opencode_repair_prompt.txt
 ```
 
 ### Пример запуска notes baseline
@@ -977,3 +1233,4 @@ unzip -t /path/to/archive.zip
 - `notes-app` и incremental slices — baseline/incremental behavior.
 
 Новые правила добавляются в kit как общие patterns/contracts, когда проблема повторяема или влияет на видимый demo-flow. Частные исправления под один sample не являются целевым результатом.
+

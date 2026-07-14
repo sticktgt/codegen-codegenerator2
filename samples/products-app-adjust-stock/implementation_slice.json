@@ -1,0 +1,44 @@
+{
+  "slice_id": "SLICE-003",
+  "title": "Add product stock adjustment action and availability labels",
+  "requirements": [
+    "REQ-008",
+    "REQ-009"
+  ],
+  "goal": "Extend the existing stock-enabled product catalog prototype with an item-level stock adjustment action and a user-visible derived availability label.",
+  "change_type": "extend_existing",
+  "selected_existing_elements": [
+    "screen.product-catalog",
+    "widget.product-search-filter",
+    "action.create-product",
+    "action.edit-product",
+    "component.product-service",
+    "api.products",
+    "data.product",
+    "mock.products-json"
+  ],
+  "preserve_existing_behavior_by_default": true,
+  "acceptance_criteria": [
+    "Existing product catalog create, edit, list, name/SKU search, category filter, stock quantity, and availability filter behavior remains working.",
+    "User can open a compact Adjust Stock control from a product row/card without opening the full edit product form.",
+    "User can set a new stock quantity through the Adjust Stock control and see the changed stock quantity in the list.",
+    "Product list displays a derived availability label for each product: In Stock, Low Stock, or Out of Stock.",
+    "Availability filter behavior from SLICE-002 is preserved: in stock means stock_quantity greater than 0 and out of stock means stock_quantity equals 0.",
+    "The incremental run modifies the existing product catalog implementation instead of creating a separate stock or warehouse screen."
+  ],
+  "constraints": [
+    "Use the previous stock-enabled products-app run as the baseline via --from-run, for example runs/run-006-products-add-stock.",
+    "Preserve existing /api/products route and root product catalog screen.",
+    "Prefer modifying existing product files over creating duplicate product catalog files.",
+    "Implement action.adjust-stock as screen-internal UI behavior unless the approved file plan explicitly allows a separate artifact.",
+    "No delete product behavior.",
+    "No inventory reservations, stock history, supplier integration, order management, or warehouse workflow.",
+    "No new dependencies.",
+    "Continue using local JSON mock storage."
+  ],
+  "non_goals": [
+    "Do not add inventory reservations or stock history.",
+    "Do not add a separate warehouse or stock management screen.",
+    "Do not change existing search/category/availability filter semantics except to keep them compatible with the new label display."
+  ]
+}

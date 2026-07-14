@@ -1,0 +1,52 @@
+{
+  "slice_id": "SLICE-001",
+  "title": "Service requests board",
+  "requirements": [
+    "REQ-001",
+    "REQ-002",
+    "REQ-003",
+    "REQ-004",
+    "REQ-005",
+    "REQ-006"
+  ],
+  "scheme_elements": [
+    "screen.request-board",
+    "widget.request-search-filter",
+    "action.create-request",
+    "action.edit-request",
+    "component.request-service",
+    "api.requests",
+    "data.service-request",
+    "mock.requests-json"
+  ],
+  "data_sources": [
+    "mock.requests-json"
+  ],
+  "allowed_scope": [
+    "create request",
+    "edit request status and priority",
+    "list requests",
+    "search requests by title or requester",
+    "filter requests by status",
+    "filter requests by priority",
+    "local JSON mock storage"
+  ],
+  "forbidden_scope": [
+    "authentication",
+    "external integrations",
+    "database migrations",
+    "workflow automation",
+    "notifications",
+    "file attachments",
+    "comments",
+    "delete request"
+  ],
+  "acceptance_criteria": [
+    "User can see a list of requests with title, requester, status, priority, and due date.",
+    "User can create a request with title, requester, status, priority, and due date.",
+    "User can edit an existing request's status and priority.",
+    "User can search requests by title or requester.",
+    "User can filter requests by status.",
+    "User can filter requests by priority."
+  ]
+}

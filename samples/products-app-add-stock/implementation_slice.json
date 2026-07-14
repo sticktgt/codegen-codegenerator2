@@ -1,0 +1,43 @@
+{
+  "slice_id": "SLICE-002",
+  "title": "Add product stock tracking",
+  "requirements": [
+    "REQ-006",
+    "REQ-007"
+  ],
+  "goal": "Extend the existing product catalog prototype with stock quantity on products and an availability filter based on stock quantity.",
+  "change_type": "extend_existing",
+  "selected_existing_elements": [
+    "screen.product-catalog",
+    "widget.product-search-filter",
+    "action.create-product",
+    "action.edit-product",
+    "component.product-service",
+    "api.products",
+    "data.product",
+    "mock.products-json"
+  ],
+  "preserve_existing_behavior_by_default": true,
+  "acceptance_criteria": [
+    "Existing product catalog create, edit, list, name/SKU search, and category filter behavior remains working.",
+    "User can enter stock quantity when creating a product.",
+    "User can edit stock quantity for an existing product.",
+    "Product list displays stock quantity or a clear stock/availability indication for each product.",
+    "User can filter products by availability: in stock and out of stock.",
+    "Backend API, service, storage, pytest, and Playwright tests are updated for the new stock behavior without creating a separate product catalog screen."
+  ],
+  "constraints": [
+    "Use the previous products-app run as the baseline via --from-run.",
+    "Preserve existing /api/products route and existing product catalog screen route.",
+    "Prefer modifying existing product files over creating duplicate product catalog files.",
+    "No delete product behavior.",
+    "No inventory reservation, supplier integration, order management, or warehouse workflow.",
+    "No new dependencies.",
+    "No database migrations; continue using local JSON mock storage."
+  ],
+  "non_goals": [
+    "Do not implement inventory reservations or stock history.",
+    "Do not add a separate warehouse screen.",
+    "Do not replace existing search/category filtering with a different UI pattern."
+  ]
+}

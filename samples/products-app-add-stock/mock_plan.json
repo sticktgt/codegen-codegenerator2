@@ -1,0 +1,35 @@
+{
+  "mocks": [
+    {
+      "id": "mock.products-json",
+      "path": "backend/app/storage/products_json_mock.json",
+      "status": "existing",
+      "records": [
+        {
+          "id": "product-1",
+          "name": "USB-C Docking Station",
+          "sku": "HW-DOCK-100",
+          "category": "hardware",
+          "price": 149.9,
+          "stock_quantity": 12
+        },
+        {
+          "id": "product-2",
+          "name": "Analytics Dashboard License",
+          "sku": "SW-DASH-200",
+          "category": "software",
+          "price": 39.0,
+          "stock_quantity": 0
+        },
+        {
+          "id": "product-3",
+          "name": "Implementation Workshop",
+          "sku": "SRV-WORK-300",
+          "category": "service",
+          "price": 950.0,
+          "stock_quantity": 3
+        }
+      ]
+    }
+  ]
+}

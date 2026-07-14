@@ -1,0 +1,41 @@
+{
+  "mocks": [
+    {
+      "id": "mock.products-json",
+      "path": "backend/app/storage/products_json_mock.json",
+      "status": "existing",
+      "records": [
+        {
+          "id": "product-1",
+          "name": "USB-C Docking Station",
+          "sku": "HW-DOCK-100",
+          "category": "hardware",
+          "price": 149.9,
+          "stock_quantity": 12,
+          "availability_label": "In Stock"
+        },
+        {
+          "id": "product-2",
+          "name": "Analytics Dashboard License",
+          "sku": "SW-DASH-200",
+          "category": "software",
+          "price": 39.0,
+          "stock_quantity": 0,
+          "availability_label": "Out of Stock"
+        },
+        {
+          "id": "product-3",
+          "name": "Implementation Workshop",
+          "sku": "SRV-WORK-300",
+          "category": "service",
+          "price": 950.0,
+          "stock_quantity": 3,
+          "availability_label": "Low Stock"
+        }
+      ],
+      "notes": [
+        "availability_label is a derived display concept. It may be computed in UI/service instead of stored, but mock examples show the expected labels for stock quantities."
+      ]
+    }
+  ]
+}

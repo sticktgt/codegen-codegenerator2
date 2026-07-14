@@ -1,0 +1,20 @@
+{
+  "data_sources": [
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON",
+      "format": "json",
+      "status": "existing",
+      "scheme_elements": [
+        "mock.products-json",
+        "data.product"
+      ],
+      "requirements": [
+        "REQ-006",
+        "REQ-007"
+      ],
+      "expected_change": "Add stock_quantity to existing JSON mock records and preserve existing product data."
+    }
+  ]
+}

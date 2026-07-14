@@ -1,0 +1,34 @@
+{
+  "mocks": [
+    {
+      "id": "mock.requests-json",
+      "path": "backend/app/storage/requests_json_mock.json",
+      "records": [
+        {
+          "id": "request-1",
+          "title": "Prepare onboarding package",
+          "requester": "Alice Novak",
+          "status": "new",
+          "priority": "normal",
+          "due_date": "2026-08-15"
+        },
+        {
+          "id": "request-2",
+          "title": "Review access permissions",
+          "requester": "Milan Petrovic",
+          "status": "in_progress",
+          "priority": "high",
+          "due_date": "2026-08-10"
+        },
+        {
+          "id": "request-3",
+          "title": "Archive completed contract",
+          "requester": "Sara Vukovic",
+          "status": "done",
+          "priority": "low",
+          "due_date": "2026-08-01"
+        }
+      ]
+    }
+  ]
+}

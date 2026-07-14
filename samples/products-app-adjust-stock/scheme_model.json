@@ -1,0 +1,181 @@
+{
+  "scheme_id": "SCH-PRODUCTS-003",
+  "title": "Product catalog prototype scheme - stock adjustment extension",
+  "elements": [
+    {
+      "id": "screen.product-catalog",
+      "type": "screen",
+      "name": "Product Catalog",
+      "requirements": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "existing": true,
+      "expected_change": "Add item-level Adjust Stock UI and derived availability label display without replacing the existing catalog screen."
+    },
+    {
+      "id": "widget.product-search-filter",
+      "type": "widget",
+      "name": "Product Search, Category and Availability Filter",
+      "requirements": [
+        "REQ-009"
+      ],
+      "existing": true,
+      "expected_change": "Preserve existing search/category/availability filtering while the product rows display derived availability labels."
+    },
+    {
+      "id": "action.create-product",
+      "type": "action",
+      "name": "Create Product",
+      "requirements": [],
+      "existing": true,
+      "expected_change": "Preserve existing create behavior including stock_quantity."
+    },
+    {
+      "id": "action.edit-product",
+      "type": "action",
+      "name": "Edit Product",
+      "requirements": [],
+      "existing": true,
+      "expected_change": "Preserve existing edit behavior including stock_quantity."
+    },
+    {
+      "id": "action.adjust-stock",
+      "type": "action",
+      "name": "Adjust Stock",
+      "requirements": [
+        "REQ-008"
+      ],
+      "existing": false,
+      "implementation_mode": "screen_internal",
+      "owning_artifact_hint": "frontend/src/screens/ProductCatalogScreen.jsx",
+      "expected_change": "Add a compact item-level action for changing stock_quantity from a product row/card without opening the full edit product form."
+    },
+    {
+      "id": "component.product-service",
+      "type": "component",
+      "name": "Product Service",
+      "requirements": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "existing": true,
+      "expected_change": "Persist adjusted stock_quantity and expose data needed for derived availability labels while preserving existing filters."
+    },
+    {
+      "id": "api.products",
+      "type": "api",
+      "name": "Products API",
+      "resource": "products",
+      "requirements": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "existing": true,
+      "expected_change": "Keep the existing /api/products resource. Reuse the existing update endpoint for stock adjustment unless the plan explicitly justifies a small helper endpoint in the same file."
+    },
+    {
+      "id": "data.product",
+      "type": "data_entity",
+      "name": "Product",
+      "existing": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sku",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "hardware",
+            "software",
+            "service"
+          ],
+          "required": true
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "stock_quantity",
+          "type": "integer",
+          "required": true,
+          "default": 0,
+          "minimum": 0
+        },
+        {
+          "name": "availability_label",
+          "type": "derived",
+          "required": false,
+          "derivation": "Out of Stock when stock_quantity == 0; Low Stock when 1 <= stock_quantity <= 5; In Stock when stock_quantity > 5"
+        }
+      ],
+      "requirements": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "expected_change": "Preserve stock_quantity and expose or compute availability_label for display."
+    },
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON",
+      "requirements": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "existing": true,
+      "expected_change": "Preserve existing mock product records with stock_quantity. The derived availability label may be computed rather than stored."
+    }
+  ],
+  "relations": [
+    {
+      "from": "screen.product-catalog",
+      "to": "widget.product-search-filter",
+      "type": "contains"
+    },
+    {
+      "from": "screen.product-catalog",
+      "to": "action.adjust-stock",
+      "type": "contains"
+    },
+    {
+      "from": "screen.product-catalog",
+      "to": "component.product-service",
+      "type": "uses"
+    },
+    {
+      "from": "component.product-service",
+      "to": "api.products",
+      "type": "exposed_by"
+    },
+    {
+      "from": "component.product-service",
+      "to": "data.product",
+      "type": "reads_writes"
+    },
+    {
+      "from": "data.product",
+      "to": "mock.products-json",
+      "type": "stored_in"
+    }
+  ],
+  "notes": [
+    "This scheme describes a second incremental extension of the products-app prototype, not a greenfield product catalog.",
+    "The planner should prefer modify operations for existing product files from the previous run baseline. The new action.adjust-stock should normally be screen-internal inside the existing ProductCatalogScreen."
+  ]
+}

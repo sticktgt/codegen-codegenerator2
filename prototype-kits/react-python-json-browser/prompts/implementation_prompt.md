@@ -69,6 +69,7 @@ File operation discipline:
 - Otherwise do not create tests.
 - Do not modify `backend/tests/test_smoke.py` for feature-specific API behavior. If smoke is present in file_plan.json as anything other than read-only/rerun coverage, report the conflict in `implementation_report.json` rather than extending smoke.
 - For Playwright repeated item actions, first locate the item/card and then call actions inside that locator. Avoid chained `>> text=... >>` selector strings for row actions.
+- For Playwright assertions inside repeated table/list rows, first locate the runtime-owned row/card, then assert the intended field/cell. Do not use `getByText()` for short, numeric, or repeated values such as stock quantities, prices, status/category labels, or codes. Prefer field display anchors or scoped table cells such as `row.locator('td').nth(<known-column-index>)`. Do not use `.first()`/`.last()` to hide ambiguous matches.
 - For generated forms, add auxiliary `form.<entity>` and `field.<entity>-<field>` anchors and use them in browser/e2e. Do not write tests that locate inputs via `getByText('Label').locator('input')` or by global form roles.
 - For `web.e2e.playwright.crud-list-search-flow`, create one compact user-journey test with `test.step(...)`, not many independent browser tests that share mutable state. Do not add browser coverage for unrequested behavior such as delete/confirmation or multi-record edge cases.
 

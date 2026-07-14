@@ -1,0 +1,165 @@
+{
+  "scheme_id": "SCH-REQUESTS-001",
+  "title": "Service requests prototype scheme",
+  "elements": [
+    {
+      "id": "screen.request-board",
+      "type": "screen",
+      "name": "Request Board",
+      "requirements": [
+        "REQ-003",
+        "REQ-004",
+        "REQ-005",
+        "REQ-006"
+      ]
+    },
+    {
+      "id": "widget.request-search-filter",
+      "type": "widget",
+      "name": "Request Search and Filters",
+      "requirements": [
+        "REQ-004",
+        "REQ-005",
+        "REQ-006"
+      ]
+    },
+    {
+      "id": "action.create-request",
+      "type": "action",
+      "name": "Create Request",
+      "requirements": [
+        "REQ-001"
+      ]
+    },
+    {
+      "id": "action.edit-request",
+      "type": "action",
+      "name": "Edit Request",
+      "requirements": [
+        "REQ-002"
+      ]
+    },
+    {
+      "id": "component.request-service",
+      "type": "component",
+      "name": "Request Service",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004",
+        "REQ-005",
+        "REQ-006"
+      ]
+    },
+    {
+      "id": "api.requests",
+      "type": "api",
+      "name": "Requests API",
+      "resource": "requests",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004",
+        "REQ-005",
+        "REQ-006"
+      ]
+    },
+    {
+      "id": "data.service-request",
+      "type": "data_entity",
+      "name": "Service Request",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "requester",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "values": [
+            "new",
+            "in_progress",
+            "done"
+          ],
+          "required": true
+        },
+        {
+          "name": "priority",
+          "type": "enum",
+          "values": [
+            "low",
+            "normal",
+            "high"
+          ],
+          "required": true
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004",
+        "REQ-005",
+        "REQ-006"
+      ]
+    },
+    {
+      "id": "mock.requests-json",
+      "type": "mock",
+      "name": "Requests JSON",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004",
+        "REQ-005",
+        "REQ-006"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "screen.request-board",
+      "to": "widget.request-search-filter",
+      "type": "contains"
+    },
+    {
+      "from": "screen.request-board",
+      "to": "component.request-service",
+      "type": "uses"
+    },
+    {
+      "from": "component.request-service",
+      "to": "api.requests",
+      "type": "exposed_by"
+    },
+    {
+      "from": "component.request-service",
+      "to": "data.service-request",
+      "type": "reads_writes"
+    },
+    {
+      "from": "data.service-request",
+      "to": "mock.requests-json",
+      "type": "stored_in"
+    }
+  ]
+}

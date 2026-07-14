@@ -1,0 +1,23 @@
+{
+  "data_sources": [
+    {
+      "id": "mock.requests-json",
+      "type": "mock",
+      "name": "Requests JSON",
+      "format": "json",
+      "status": "generated",
+      "scheme_elements": [
+        "mock.requests-json",
+        "data.service-request"
+      ],
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003",
+        "REQ-004",
+        "REQ-005",
+        "REQ-006"
+      ]
+    }
+  ]
+}

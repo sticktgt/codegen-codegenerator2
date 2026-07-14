@@ -1,0 +1,162 @@
+{
+  "scheme_id": "SCH-PRODUCTS-002",
+  "title": "Product catalog prototype scheme - stock extension",
+  "elements": [
+    {
+      "id": "screen.product-catalog",
+      "type": "screen",
+      "name": "Product Catalog",
+      "requirements": [
+        "REQ-006",
+        "REQ-007"
+      ],
+      "existing": true,
+      "expected_change": "Add stock quantity display, stock field in create/edit form, and availability filter display state without replacing the existing catalog screen."
+    },
+    {
+      "id": "widget.product-search-filter",
+      "type": "widget",
+      "name": "Product Search and Category/Availability Filter",
+      "requirements": [
+        "REQ-007"
+      ],
+      "existing": true,
+      "expected_change": "Extend the existing search/filter widget with an availability filter while preserving existing name/SKU search and category filter behavior."
+    },
+    {
+      "id": "action.create-product",
+      "type": "action",
+      "name": "Create Product",
+      "requirements": [
+        "REQ-006"
+      ],
+      "existing": true,
+      "expected_change": "Accept stock quantity in the existing create product form."
+    },
+    {
+      "id": "action.edit-product",
+      "type": "action",
+      "name": "Edit Product",
+      "requirements": [
+        "REQ-006"
+      ],
+      "existing": true,
+      "expected_change": "Allow editing stock quantity in the existing edit product form."
+    },
+    {
+      "id": "component.product-service",
+      "type": "component",
+      "name": "Product Service",
+      "requirements": [
+        "REQ-006",
+        "REQ-007"
+      ],
+      "existing": true,
+      "expected_change": "Persist stock quantity and support availability filtering while preserving existing search/category/list behavior."
+    },
+    {
+      "id": "api.products",
+      "type": "api",
+      "name": "Products API",
+      "resource": "products",
+      "requirements": [
+        "REQ-006",
+        "REQ-007"
+      ],
+      "existing": true,
+      "expected_change": "Keep the existing /api/products resource and extend request/response/filter handling for stock_quantity and availability."
+    },
+    {
+      "id": "data.product",
+      "type": "data_entity",
+      "name": "Product",
+      "existing": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sku",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "hardware",
+            "software",
+            "service"
+          ],
+          "required": true
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "stock_quantity",
+          "type": "integer",
+          "required": true,
+          "default": 0,
+          "minimum": 0
+        }
+      ],
+      "requirements": [
+        "REQ-006",
+        "REQ-007"
+      ],
+      "expected_change": "Extend existing product records with stock_quantity."
+    },
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON",
+      "requirements": [
+        "REQ-006",
+        "REQ-007"
+      ],
+      "existing": true,
+      "expected_change": "Extend existing mock product records with stock_quantity."
+    }
+  ],
+  "relations": [
+    {
+      "from": "screen.product-catalog",
+      "to": "widget.product-search-filter",
+      "type": "contains"
+    },
+    {
+      "from": "screen.product-catalog",
+      "to": "component.product-service",
+      "type": "uses"
+    },
+    {
+      "from": "component.product-service",
+      "to": "api.products",
+      "type": "exposed_by"
+    },
+    {
+      "from": "component.product-service",
+      "to": "data.product",
+      "type": "reads_writes"
+    },
+    {
+      "from": "data.product",
+      "to": "mock.products-json",
+      "type": "stored_in"
+    }
+  ],
+  "notes": [
+    "This scheme describes an incremental extension of the existing products-app prototype, not a greenfield product catalog.",
+    "The planner should prefer modify operations for existing product files from the previous run baseline. Create new files only if needed by the selected kit and file plan."
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "requirements": [
+    {
+      "id": "REQ-008",
+      "text": "Пользователь может изменить количество товара на складе отдельным действием Adjust Stock из строки продукта, без открытия полной формы редактирования продукта.",
+      "priority": "should",
+      "status": "approved"
+    },
+    {
+      "id": "REQ-009",
+      "text": "В списке продуктов отображается derived availability label: In Stock для количества больше 5, Low Stock для количества от 1 до 5, Out of Stock для количества 0.",
+      "priority": "should",
+      "status": "approved"
+    }
+  ]
+}

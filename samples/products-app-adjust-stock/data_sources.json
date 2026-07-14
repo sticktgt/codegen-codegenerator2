@@ -1,0 +1,20 @@
+{
+  "data_sources": [
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON",
+      "format": "json",
+      "status": "existing",
+      "scheme_elements": [
+        "mock.products-json",
+        "data.product"
+      ],
+      "requirements": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "expected_change": "Preserve existing product JSON storage with stock_quantity and support the adjusted stock value used for availability label display."
+    }
+  ]
+}
