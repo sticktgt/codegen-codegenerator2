@@ -1,0 +1,31 @@
+{
+  "data_sources": [
+    {
+      "id": "mock.suppliers-json",
+      "type": "mock",
+      "name": "Suppliers JSON",
+      "format": "json",
+      "status": "new",
+      "scheme_elements": [
+        "mock.suppliers-json",
+        "data.supplier"
+      ],
+      "requirements": [
+        "REQ-010"
+      ],
+      "expected_change": "Add local JSON mock storage for supplier create/list behavior."
+    },
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON",
+      "format": "json",
+      "status": "existing",
+      "scheme_elements": [
+        "data.product"
+      ],
+      "requirements": [],
+      "expected_change": "Preserve existing product storage unchanged in this slice."
+    }
+  ]
+}

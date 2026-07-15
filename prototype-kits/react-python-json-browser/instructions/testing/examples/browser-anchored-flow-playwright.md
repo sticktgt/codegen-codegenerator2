@@ -158,3 +158,23 @@ await test.step('Clear search and verify unfiltered list', async () => {
   await expect(page.getByTestId('item.customer').filter({ hasText: secondName })).toBeVisible();
 });
 ```
+
+
+### Native select with asynchronously loaded options
+
+Use this pattern when a form selects an asynchronously loaded option by user-visible label:
+
+```javascript
+const optionSelect = page.getByTestId('field.item-choice');
+await expect(optionSelect).toBeVisible();
+await expect(optionSelect.locator('option', { hasText: optionLabel })).toHaveCount(1);
+await optionSelect.selectOption({ label: optionLabel });
+```
+
+Avoid this pattern:
+
+```javascript
+await expect(optionSelect.locator(`option:has-text("${optionLabel}")`)).toBeVisible();
+```
+
+Native `<option>` nodes may be reported as hidden even when the option is present and selectable.

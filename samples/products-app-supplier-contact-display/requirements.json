@@ -1,0 +1,16 @@
+{
+  "requirements": [
+    {
+      "id": "REQ-013",
+      "text": "В списке продуктов отображается контактный email поставщика для продуктов, связанных с поставщиком.",
+      "priority": "should",
+      "status": "approved",
+      "notes": [
+        "This slice starts from a successful supplier display/filter baseline: Product already has optional supplier_id, supplier_name display, and supplier filter behavior.",
+        "Supplier records must already be available through /api/suppliers or existing schema-compatible mock storage; this slice must not recreate supplier management or change the Supplier schema.",
+        "The contact email displayed for a product must come from the supplier currently assigned to that product, using real supplier ids/contact_email values from the current API or runtime test data.",
+        "If the product supplier is changed during edit, the displayed contact email must update to the newly selected supplier's contact_email."
+      ]
+    }
+  ]
+}

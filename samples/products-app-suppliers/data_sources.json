@@ -1,0 +1,37 @@
+{
+  "data_sources": [
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON",
+      "format": "json",
+      "status": "existing",
+      "scheme_elements": [
+        "mock.products-json",
+        "data.product"
+      ],
+      "requirements": [
+        "REQ-011",
+        "REQ-012"
+      ],
+      "expected_change": "Preserve existing product JSON storage and extend product records with supplier_id or equivalent supplier assignment data."
+    },
+    {
+      "id": "mock.suppliers-json",
+      "type": "mock",
+      "name": "Suppliers JSON",
+      "format": "json",
+      "status": "new",
+      "scheme_elements": [
+        "mock.suppliers-json",
+        "data.supplier"
+      ],
+      "requirements": [
+        "REQ-010",
+        "REQ-011",
+        "REQ-012"
+      ],
+      "expected_change": "Add local JSON mock storage for suppliers used by supplier create, product supplier selection, supplier name display, and supplier filtering."
+    }
+  ]
+}

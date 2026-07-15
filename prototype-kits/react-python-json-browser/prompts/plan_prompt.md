@@ -12,6 +12,7 @@ Read:
 - instructions/planning-rules.md
 - instructions/validation-rules.md
 - instructions/testing/test-method-catalog.md
+- prototype/input/baseline_context/*.json, if present (use this workspace-relative path exactly; do not prefix it with the run directory path)
 - the current workspace source files as needed
 
 Canonical instruction paths:
@@ -28,21 +29,29 @@ Rules:
 - The model owns architectural planning decisions. Python validation may reject unsafe or malformed plans, but it must not rewrite artifact types, file placement, or create/modify decisions to repair architectural meaning. Produce a plan that is already consistent with the architecture rules.
 - Before writing final JSON, self-check the plan against `instructions/architecture.md`, `instructions/planning-rules.md`, `generation-rules.yaml`, and `architecture-contract.yaml`; fix your own plan if any row violates those rules.
 - The baseline workspace is not empty even for `change_type: create_new`: kit skeleton files such as `frontend/src/routes/routeRegistry.js`, `frontend/src/App.jsx`, `backend/app/main.py`, `backend/app/storage/__init__.py`, empty package `__init__.py` files, and package/task files may already exist. If an existing skeleton/integration/storage file must be wired or filled, put it under `file_plan_draft.modify` with a writable policy such as `may_modify` or `must_modify`; do not put existing files under `file_plan_draft.create`. Pipeline may only coerce create-to-modify for known empty kit skeleton paths; do not rely on that guard for unknown empty files or semantic artifacts.
+- Use `policy: "must_modify"` only when the requirement cannot be implemented without a semantic change in that exact file. If a file is only a possible implementation location, a related layer, or needed for inspection/regression context, use `may_modify` or `read_only` instead. Do not mark a file `must_modify` merely to show traceability.
+- For incremental slices, choose the owner of each new behavior precisely. For derived display values, either the model/schema may compute the value, or a service/API mapper may compute it, but do not require all related layers to change unless each layer truly needs a semantic code change. A Pydantic `computed_field` is appropriate only when the value can be computed from fields on the same model. If the display value depends on a related resource or external lookup, plan a service/API mapping or explicit optional response field instead.
+- A file-plan `reason` for `must_modify` must name the concrete semantic change expected in that file. Reasons like "verify", "preserve", "include if needed", or "related to requirement" are not sufficient for `must_modify`; use `read_only`/`may_modify` for those cases.
+
 - Artifact types whose contract allows only `modify`/`read` (for example `frontend_integration` and `backend_integration`) must never be proposed as `create`.
 - Use `backend_integration` only for `backend/app/main.py`. Use `backend_storage` for `backend/app/storage/__init__.py` and all files under `backend/app/storage/`.
 - Use `frontend_integration` for existing frontend wiring files such as `frontend/src/routes/routeRegistry.js` and `frontend/src/App.jsx`.
 - New file names and new scheme element ids must be proposed by you from the requirement intent and current project conventions, not copied from hardcoded assumptions.
 - Follow the `planner_output` section of `architecture-contract.yaml` for canonical design_delta output. Do not use deprecated alternatives such as `scheme_delta`.
 - Treat `prototype/input/run_input.json`, when present, as the canonical scenario input from the requirements stage. Treat `implementation_slice.json` as a compatibility view generated from it for the current pipeline.
-- Treat `prototype/input/scheme_model.json` as scheme context from requirements/design. A scheme element being present does not prove that the implementation artifact exists in the workspace.
+- Treat `prototype/input/scheme_model.json` as scheme context from requirements/design. A scheme element being present does not prove that the implementation artifact exists in the workspace. The scheme may also be partial in incremental runs.
+- Treat `prototype/input/baseline_context/*.json`, when present, as read-only semantic context from the previous successful run: traceability, accepted file plans, change manifests, and validation summaries. Use it together with workspace inspection; do not treat it as a file-change instruction.
 - The scenario/run input describes user intent, acceptance criteria, optional selected existing scheme elements, and constraints. It does not prescribe file policies, new element ids, or implementation artifact names.
-- If `run_input.json` or `implementation_slice.json` includes `selected_existing_elements`, use them as user-selected context. If it is empty or absent, resolve affected existing elements yourself from requirements, scheme_model, traceability implied by existing files, and code.
-- Strictly separate existing and new scheme elements:
-  - `design_delta.resolved_existing_elements` contains elements that already exist in `scheme_model.json` or were explicitly listed in `implementation_slice.selected_existing_elements`; being resolved existing does not mean implemented code already exists.
-  - `design_delta.proposed_new_elements` contains only element ids you introduce beyond `scheme_model.json`; do not put scheme-model ids into proposed_new_elements just because their implementation files are new.
+- If `run_input.json` or `implementation_slice.json` includes `selected_existing_elements`, use them as user-selected context. If it is empty or absent, resolve affected existing elements yourself from requirements, scheme_model, baseline_context, previous traceability, existing anchors/routes/API/model fields, and code.
+- Strictly separate existing, discovered, and new scheme elements:
+  - `design_delta.resolved_existing_elements` contains elements known from `scheme_model.json`, explicitly listed in `implementation_slice.selected_existing_elements`, discovered from `baseline_context`, previous traceability, or discovered in the current workspace code. Being resolved existing does not mean the element was listed in the current scheme_model.
+  - `design_delta.proposed_new_elements` contains only element ids introduced for the current slice and not known from scheme_model, selected_existing_elements, baseline_context, or workspace discovery. Do not put discovered baseline/code elements into proposed_new_elements merely because the current scheme_model omits them.
   - No element id may appear in both lists.
   - Use `source: "selected_by_user"` only for ids explicitly listed in `implementation_slice.selected_existing_elements`.
-  - Use `source: "resolved_by_planner"` for existing elements you inferred from requirements, scheme_model, traceability, or code.
+  - Use `source: "scheme_model"` for ids present in scheme_model.
+  - Use `source: "baseline_discovered"`, `"previous_traceability"`, or `"workspace_discovered"` for ids absent from scheme_model but supported by baseline artifacts or current code evidence.
+  - Use `source: "resolved_by_planner"` only when the existing-element classification follows from multiple inputs and you explain the evidence in `reason`.
+  - If a resolved existing element is absent from the current scheme_model, mention this as a schema gap/update candidate in `assumptions` or `design_delta.schema_gaps` when useful; do not classify it as a new implementation element.
 - If the slice extends existing behavior, preserve already accepted behavior by default. Prefer adding a wrapper, UI state, or new artifact over repurposing an existing artifact with a stable responsibility.
 - If a scheme action is implemented inside a screen rather than a dedicated action file, make the relationship explicit in `design_delta`: for a new action use `proposed_new_elements`; for an existing action from `scheme_model.json` keep it in `resolved_existing_elements` but include `implementation_mode: "screen_internal"` and `owning_artifact`. Also include that action id in the owning screen file-plan item `scheme_elements` so UI anchor checks can validate it.
 - For simple React CRUD/list/search screens, prefer screen-internal UI actions when the button/form handler is rendered directly by the screen. Do not create dedicated frontend action files just for naming symmetry. In the planned screen file item, include the `action.*` ids rendered by the screen so ui_static can validate the anchors.
@@ -54,6 +63,10 @@ Rules:
   - `extend_existing_test`: use when an existing executable test file should be modified because acceptance criteria are not covered.
   - `create_new_test`: use when no suitable existing test file exists and the kit can run that validation.
   - `rerun_behavior_test` / `extend_behavior_test` / `create_behavior_test`: use only for frontend behavior checks when `frontend_behavior` is enabled and executable.
+- Keep validation intent consistent with workspace file existence:
+  - If `proposed_file` already exists in the current workspace, do not use `create_new_test` or `create_behavior_test` for that same path. Use `extend_existing_test` / `extend_behavior_test` when the file must be modified, or `rerun_existing` / `rerun_behavior_test` when existing coverage is sufficient.
+  - Use `create_new_test` only for a new path that does not already exist and whose file-plan item is `create`/`must_create` or equivalent writable creation policy.
+  - When extending an existing test file, plan an additive change that preserves its existing tests; do not plan a full replacement of prior coverage.
 - For preserved behavior, prefer rerunning existing tests before creating or modifying test files.
 - Do not propose frontend unit test files unless `frontend/package.json` already has a test script and declared test runner.
 - Prefer backend API/service tests for backend behavior, edge cases, validation errors, and most negative cases. For Python API behavior with mutable state, use `test_method_id: "backend.pytest.api.mutable-state"`. Do not use smoke tests for feature-specific API behavior; smoke checks are baseline reruns (`backend.smoke.import-health`) and should normally be read-only.
@@ -79,8 +92,8 @@ plan_proposal.json shape:
       {
         "id": "existing scheme element id",
         "type": "screen|action|api|service|data|component|other",
-        "source": "selected_by_user|resolved_by_planner",
-        "reason": "why this existing element is relevant; use selected_by_user only when id is explicitly selected in implementation_slice"
+        "source": "selected_by_user|scheme_model|baseline_discovered|previous_traceability|workspace_discovered|resolved_by_planner",
+        "reason": "why this existing/discovered element is relevant; include evidence when it is absent from the current scheme_model"
       }
     ],
     "proposed_new_elements": [
@@ -92,6 +105,13 @@ plan_proposal.json shape:
         "artifact": "relative/path for separate_artifact or null",
         "owning_artifact": "relative/path for screen_internal or existing_artifact_extension, otherwise null",
         "reason": "why this new element is needed"
+      }
+    ],
+    "schema_gaps": [
+      {
+        "id": "existing element id missing from current scheme_model, if any",
+        "source": "baseline_discovered|previous_traceability|workspace_discovered",
+        "suggested_schema_update": "short description or null"
       }
     ],
     "preservation_decisions": [
@@ -144,6 +164,7 @@ validation_plan_proposal.json shape:
 Architecture contract requirement:
 - Follow `prototype/input/architecture-contract.yaml` for artifact types, allowed roots, path placement, test capabilities, dependency policy, and UI anchor conventions.
 - Do not invent file placement rules outside the contract.
+- When a slice adds, removes, or exposes a response field, derived display field, filter field, or query-supported field that requires a response/model/DTO/schema change, include the owning model/DTO/schema file in the file plan. Do not rely on API/service/test changes alone if the response model must serialize the new field. If the model is intentionally unchanged because the value is mapped elsewhere, explain that in the plan.
 
 Workspace path discipline:
 - Treat the current working directory as the workspace root.
@@ -154,9 +175,9 @@ Workspace path discipline:
 
 Planner-output discipline:
 - `design_delta` is the only canonical design-delta section. Do not write `scheme_delta`.
-- Every new scheme element referenced by `file_plan_draft` or `validation_plan_proposal` must appear in `design_delta.proposed_new_elements`.
+- Every scheme element referenced by `file_plan_draft` or `validation_plan_proposal` must be either present in `scheme_model.json`, listed in `design_delta.resolved_existing_elements`, or listed in `design_delta.proposed_new_elements`.
 - New scheme element ids must not appear in `resolved_existing_elements`, even if they are mentioned by validation checks or anchored inside an existing screen.
-- Existing element ids already present in `scheme_model.json` should not appear in `proposed_new_elements`.
+- Existing/discovered element ids already present in scheme_model, baseline_context, previous traceability, or workspace code should not appear in `proposed_new_elements`; classify them as `resolved_existing_elements` and record a schema gap if the current scheme_model is incomplete.
 - A screen-internal action may have no dedicated file, but it still needs a design_delta entry with `implementation_mode: "screen_internal"` and `owning_artifact` pointing to the owning file path or owning screen element id. This applies to existing scheme actions as well as new proposed actions.
 - If a screen file implements screen-internal actions, include those action ids in the screen file's `scheme_elements` and include the related requirement ids on the screen file when you can.
 - Do not include files in the file plan merely to satisfy naming symmetry. File creation must follow the actual architecture decision.
@@ -188,3 +209,9 @@ Browser kit rule:
   - Coverage may be direct (`requirement_id`/`requirements`) or through a referenced scheme element whose scheme-model requirements include that id.
   - For screen-internal actions, the owning screen file is the implementation file for that action requirement; make that relationship explicit through `scheme_elements` and/or `design_delta.owning_artifact`.
   - Do not cover primary requirements only implicitly through a broad check under a different requirement id.
+Multi-resource incremental planning:
+- When a slice adds a second resource to an existing screen, separate ownership clearly: the parent screen may embed a new widget, but the widget file owns its own internal actions and anchors.
+- If a new action is implemented by a child widget, set `implementation_mode: "screen_internal"` or the nearest supported internal mode with `owning_artifact` pointing to the child widget file that contains the real clickable control. Do not attach the child action to the parent screen file merely because the parent renders the widget.
+- The parent screen file should list the child widget element as integration context, not duplicate the child widget's action id in its own `scheme_elements` unless the parent screen contains the actual clickable control.
+- For multi-resource joins or display fields, plan the dependency seam explicitly. If one resource service resolves a related resource display value through another service/repository, plan constructor injection or an API-layer dependency provider so tests and runtime can share the same isolated storage/service instances. Do not plan a service that silently instantiates a production/default related service when validation needs temp storage isolation.
+- For existing UI flows, prefer extending the existing spec/test only where it is necessary to prove preservation or the new relationship. A separate compact spec is acceptable for a distinct new resource flow, but do not split one user journey into many specs.

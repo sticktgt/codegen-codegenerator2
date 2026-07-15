@@ -18,3 +18,24 @@ Backend tests should validate public backend behavior without changing implement
 - Match the generated API request contract: use `json=` for create/update endpoints that accept Pydantic request bodies, and use query params only for list/search/filter endpoints. Backend pytest and frontend calls must use the same request shape and the same query parameter names. If the API parameter is named `search`, tests must pass `params={"search": value}`; if it is named `q`, every layer must use `q`. Use `params=...` rather than raw query-string concatenation so values with `+`, spaces, `&`, `%`, or `#` are encoded correctly.
 - Match framework behavior: FastAPI/Pydantic request schema errors usually return 422; use 400 only for explicit domain validation implemented after schema parsing.
 - Keep baseline smoke checks separate. Do not add feature CRUD/search assertions to `backend/tests/test_smoke.py`; create or extend the planned feature test file instead.
+## Multi-resource dependency overrides
+
+For API tests that cover relationships between resources, override every service provider involved in the request path.
+
+Example: if one API endpoint returns a display value resolved from a related resource service, override both the primary-resource provider and the related-resource provider so they share the same temp-storage fixture. Do not create related records in one temp file while the API resolves display values from the default tracked mock storage.
+
+
+For composed primary/related services, the primary provider must still be overrideable with the test-owned primary storage. A good test seam is to override `get_primary_service` with `PrimaryService(storage_path=temp_primary, related_service=test_related_service)`. If the endpoint also exposes `get_related_service`, override it as well only when the endpoint or provider uses it directly.
+
+A backend API test should fail if overriding the primary provider does not control the records returned by the endpoint. That usually means the endpoint constructed a replacement primary service with default storage instead of using the injected primary service.
+
+Do not repair a failing related-resource test by switching to only `app.dependency_overrides[get_related_service]` if the endpoint creates a new primary service with default storage. That pattern reads production/mock primary records instead of the test records.
+
+Use fixture teardown to clear overrides after the request sequence.
+
+## Extending existing test files
+
+When a slice adds coverage to an existing backend test file, keep the existing tests unless the requirement explicitly removes the behavior they cover. Add new tests near related coverage or make the smallest targeted edits. Do not replace an existing multi-test file with only the current slice tests.
+
+If a validation plan labels a check as `create_new_test` but the target test file already exists, treat it as an extension case: preserve the file and add missing tests, and record the mismatch in the implementation or repair report. A genuinely new test file should use a path that does not already exist.
+

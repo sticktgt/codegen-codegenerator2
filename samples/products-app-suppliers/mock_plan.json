@@ -1,0 +1,52 @@
+{
+  "mocks": [
+    {
+      "id": "mock.suppliers-json",
+      "path": "backend/app/storage/suppliers_json_mock.json",
+      "status": "new",
+      "records": [
+        {
+          "id": "supplier-1",
+          "name": "Acme Components",
+          "contact_email": "ops@acme-components.example"
+        },
+        {
+          "id": "supplier-2",
+          "name": "Northwind Software",
+          "contact_email": "partners@northwind-software.example"
+        }
+      ],
+      "notes": [
+        "Suppliers are local mock records used for demo create/select/filter behavior."
+      ]
+    },
+    {
+      "id": "mock.products-json",
+      "path": "backend/app/storage/products_json_mock.json",
+      "status": "existing",
+      "records": [
+        {
+          "id": "product-1",
+          "name": "USB-C Docking Station",
+          "sku": "HW-DOCK-100",
+          "category": "hardware",
+          "price": 149.9,
+          "stock_quantity": 12,
+          "supplier_id": "supplier-1"
+        },
+        {
+          "id": "product-2",
+          "name": "Analytics Dashboard License",
+          "sku": "SW-DASH-200",
+          "category": "software",
+          "price": 39.0,
+          "stock_quantity": 0,
+          "supplier_id": "supplier-2"
+        }
+      ],
+      "notes": [
+        "Existing product storage may be extended with supplier_id. Existing stock_quantity and availability behavior must be preserved."
+      ]
+    }
+  ]
+}

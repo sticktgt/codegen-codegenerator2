@@ -1,0 +1,50 @@
+{
+  "slice_id": "SLICE-004",
+  "title": "Add suppliers to the product catalog",
+  "requirements": [
+    "REQ-010",
+    "REQ-011",
+    "REQ-012"
+  ],
+  "goal": "Extend the existing stock-enabled products-app prototype with a second resource for suppliers and connect products to suppliers through product create/edit and list filtering.",
+  "change_type": "extend_existing",
+  "selected_existing_elements": [
+    "screen.product-catalog",
+    "widget.product-search-filter",
+    "action.create-product",
+    "action.edit-product",
+    "action.adjust-stock",
+    "component.product-service",
+    "api.products",
+    "data.product",
+    "mock.products-json"
+  ],
+  "preserve_existing_behavior_by_default": true,
+  "acceptance_criteria": [
+    "Existing product create, edit, list, search, category filter, stock quantity, availability filter, Adjust Stock action, and availability label behavior remains working.",
+    "User can create a supplier with name and contact email in the existing product catalog prototype context.",
+    "User can select a supplier when creating a product.",
+    "User can change a product supplier when editing a product.",
+    "Product list displays the supplier name for products that have a supplier.",
+    "User can filter products by supplier and see only products assigned to the selected supplier.",
+    "The incremental run extends the existing product catalog implementation rather than creating a separate unrelated application."
+  ],
+  "constraints": [
+    "Use the previous adjusted-stock products-app run as the baseline via --from-run, for example runs/run-007-products-adjust-stock.",
+    "Preserve the existing /api/products resource and existing ProductCatalogScreen root screen.",
+    "Add suppliers as a second lightweight resource in the same prototype: supplier model, supplier service, supplier API, and supplier mock JSON are allowed.",
+    "Prefer extending the existing ProductCatalogScreen and ProductSearchFilter rather than replacing them.",
+    "Product supplier selection may be implemented with supplier_id stored on Product and supplier name resolved in UI, service, or API response, as long as the demo behavior is visible and consistent.",
+    "Do not add product delete behavior.",
+    "Do not add purchase orders, supplier scoring, contracts, procurement workflow, authentication, external integrations, or database migrations.",
+    "No new dependencies.",
+    "Continue using local JSON mock storage."
+  ],
+  "non_goals": [
+    "Supplier contracts or procurement workflows.",
+    "Many-to-many supplier/product relationships.",
+    "External supplier registry integration.",
+    "Authentication, authorization, or user roles.",
+    "Changing existing stock and availability filter semantics."
+  ]
+}

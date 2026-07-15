@@ -1,0 +1,184 @@
+{
+  "scheme_id": "SCH-PRODUCTS-004B",
+  "title": "Product catalog prototype scheme - product supplier selection",
+  "elements": [
+    {
+      "id": "screen.product-catalog",
+      "type": "screen",
+      "name": "Product Catalog",
+      "requirements": [
+        "REQ-011"
+      ],
+      "existing": true,
+      "expected_change": "Extend existing product create/edit forms with supplier selection using already available schema-compatible supplier options, without replacing the screen. The product supplier select should use a stable field anchor, preferably field.product-supplier-id."
+    },
+    {
+      "id": "widget.supplier-management",
+      "type": "widget",
+      "name": "Supplier Management",
+      "requirements": [],
+      "existing": true,
+      "expected_change": "Preserve supplier creation/list behavior from the previous slice; do not use supplier creation as the product selection test setup in this slice, and do not change the Supplier model/schema."
+    },
+    {
+      "id": "action.create-product",
+      "type": "action",
+      "name": "Create Product",
+      "requirements": [
+        "REQ-011"
+      ],
+      "existing": true,
+      "expected_change": "Extend existing create product behavior so a supplier can be selected while preserving existing fields."
+    },
+    {
+      "id": "action.edit-product",
+      "type": "action",
+      "name": "Edit Product",
+      "requirements": [
+        "REQ-011"
+      ],
+      "existing": true,
+      "expected_change": "Extend existing edit product behavior so the selected supplier can be changed while preserving existing edit fields."
+    },
+    {
+      "id": "action.adjust-stock",
+      "type": "action",
+      "name": "Adjust Stock",
+      "requirements": [],
+      "existing": true,
+      "expected_change": "Preserve existing Adjust Stock behavior."
+    },
+    {
+      "id": "component.product-service",
+      "type": "component",
+      "name": "Product Service",
+      "requirements": [
+        "REQ-011"
+      ],
+      "existing": true,
+      "expected_change": "Persist supplier assignment on Product records while preserving stock and availability behavior."
+    },
+    {
+      "id": "component.supplier-service",
+      "type": "component",
+      "name": "Supplier Service",
+      "requirements": [
+        "REQ-011"
+      ],
+      "existing": true,
+      "expected_change": "Provide supplier list data for the product form selection."
+    },
+    {
+      "id": "api.products",
+      "type": "api",
+      "name": "Products API",
+      "resource": "products",
+      "requirements": [
+        "REQ-011"
+      ],
+      "existing": true,
+      "expected_change": "Preserve existing /api/products behavior and extend product create/edit payloads with optional supplier_id."
+    },
+    {
+      "id": "api.suppliers",
+      "type": "api",
+      "name": "Suppliers API",
+      "resource": "suppliers",
+      "requirements": [
+        "REQ-011"
+      ],
+      "existing": true,
+      "expected_change": "Preserve /api/suppliers list/create behavior and use supplier list for selection."
+    },
+    {
+      "id": "data.product",
+      "type": "data_entity",
+      "name": "Product",
+      "existing": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sku",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "hardware",
+            "software",
+            "service"
+          ],
+          "required": true
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "stock_quantity",
+          "type": "integer",
+          "required": true,
+          "default": 0,
+          "minimum": 0
+        },
+        {
+          "name": "availability_label",
+          "type": "derived",
+          "required": false,
+          "derivation": "Out of Stock when stock_quantity == 0; Low Stock when 1 <= stock_quantity <= 5; In Stock when stock_quantity > 5"
+        },
+        {
+          "name": "supplier_id",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "requirements": [
+        "REQ-011"
+      ],
+      "expected_change": "Add optional supplier_id assignment to Product while preserving existing fields and availability label."
+    },
+    {
+      "id": "data.supplier",
+      "type": "data_entity",
+      "name": "Supplier",
+      "existing": true,
+      "requirements": [
+        "REQ-011"
+      ],
+      "expected_change": "Use existing Supplier records for product form selection."
+    },
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON Mock",
+      "existing": true,
+      "requirements": [
+        "REQ-011"
+      ],
+      "expected_change": "Existing product storage may be extended with supplier_id."
+    },
+    {
+      "id": "mock.suppliers-json",
+      "type": "mock",
+      "name": "Suppliers JSON Mock",
+      "existing": true,
+      "requirements": [
+        "REQ-011"
+      ],
+      "expected_change": "Preserve existing schema-compatible supplier mock records. If fewer than two valid suppliers exist, append fallback records using the current Supplier model fields exactly, including contact_email when that is the model field. Do not replace the supplier mock schema with email/phone fields."
+    }
+  ]
+}

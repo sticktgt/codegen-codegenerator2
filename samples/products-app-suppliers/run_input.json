@@ -1,0 +1,68 @@
+{
+  "run_input_version": 1,
+  "source": "requirements_stage",
+  "slice": {
+    "slice_id": "SLICE-004",
+    "title": "Add suppliers to the product catalog",
+    "requirement_ids": [
+      "REQ-010",
+      "REQ-011",
+      "REQ-012"
+    ],
+    "goal": "Extend the adjusted-stock products-app prototype with a second Supplier resource and product-to-supplier selection/filtering.",
+    "change_type": "extend_existing",
+    "selected_existing_elements": [
+      "screen.product-catalog",
+      "widget.product-search-filter",
+      "action.create-product",
+      "action.edit-product",
+      "action.adjust-stock",
+      "component.product-service",
+      "api.products",
+      "data.product",
+      "mock.products-json"
+    ],
+    "preserve_existing_behavior_by_default": true,
+    "acceptance_criteria": [
+      "Existing product catalog create, edit, list, search, category filter, stock quantity, availability filter, Adjust Stock action, and availability label behavior remains working.",
+      "User can create a supplier with name and contact email inside the product catalog prototype.",
+      "User can select a supplier when creating a product.",
+      "User can change a product supplier when editing a product.",
+      "Product list displays the selected supplier name.",
+      "User can filter the product list by supplier.",
+      "The run adds suppliers as a second resource without replacing the existing products resource."
+    ],
+    "constraints": [
+      "Use --from-run with a successful adjusted-stock products-app run as baseline, for example runs/run-007-products-adjust-stock.",
+      "Preserve existing /api/products route and root ProductCatalogScreen.",
+      "Preserve existing product search, category filter, stock_quantity create/edit, availability filter, Adjust Stock action, and availability label behavior.",
+      "Add supplier support through small, focused changes and new supplier-owned files where appropriate.",
+      "Prefer a single coherent product catalog UI over a separate unrelated supplier application.",
+      "No delete product behavior and no delete supplier behavior unless explicitly required by the approved plan.",
+      "No purchase orders, contracts, supplier scoring, procurement workflow, authentication, external systems, or database migrations.",
+      "No new dependencies.",
+      "Continue using local JSON mock storage."
+    ],
+    "non_goals": [
+      "Supplier contract management.",
+      "Supplier scoring or risk assessment.",
+      "Purchase order or inventory procurement workflow.",
+      "External integrations or persistent database migrations.",
+      "Reworking the product catalog into a different navigation model."
+    ],
+    "notes": [
+      "This scenario validates an incremental structural extension: adding a second resource to an already extended generated prototype.",
+      "The baseline should be a successful run of samples/products-app-adjust-stock, for example runs/run-007-products-adjust-stock."
+    ]
+  },
+  "requirements_file": "requirements.json",
+  "current_prototype": {
+    "scheme_model_file": "scheme_model.json",
+    "data_sources_file": "data_sources.json",
+    "mock_plan_file": "mock_plan.json"
+  },
+  "notes": [
+    "This is an incremental scenario, not a greenfield product catalog.",
+    "Use it after a successful products-app-adjust-stock run to verify that the pipeline can add a second resource while preserving previous product behavior."
+  ]
+}

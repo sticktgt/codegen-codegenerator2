@@ -43,6 +43,10 @@ For generated React forms in this kit, expose stable auxiliary anchors in additi
 
 - Form scope: `data-prototype-id="form.<entity>"` on the visible form or form-like container.
 - Field controls: `data-prototype-id="field.<entity>-<field>"` on each input/select/textarea used by browser/e2e.
+
+- Async option selects: when a form contains a `<select>` whose options are loaded or changed asynchronously, keep the option list in the component state that renders the select and refresh that list after the action that changes the options succeeds. Do not refresh only the main list while leaving select options stale.
+  If a sibling or child component can create/update records that feed the select options, connect its success callback to the option-list refresh (or append the returned option to local state). Refreshing only an unrelated list is not enough; the select must receive the new option before the user/test can choose it.
+- Select option semantics: the option `value` may be an internal id while the visible label is a user-facing name/title. The UI should render stable option labels for users, and browser tests should select by label or known value without assuming the label equals the stored id.
 - Opener control: `data-prototype-id="control.open-create-<entity>"` on a button that only opens the form.
 - Submit/save control: exact scheme action anchor such as `action.create-<entity>` or `action.edit-<entity>`.
 - Repeated rows/cards: `data-prototype-id="item.<entity>"`.

@@ -1,0 +1,79 @@
+{
+  "run_input_version": 1,
+  "source": "requirements_stage",
+  "slice": {
+    "slice_id": "SLICE-004C",
+    "title": "Add supplier display and filtering",
+    "requirements": [
+      "REQ-012"
+    ],
+    "goal": "Show supplier names in the product list and add supplier filtering, after suppliers and product supplier assignment already exist.",
+    "change_type": "extend_existing_behavior",
+    "selected_existing_elements": [
+      "screen.product-catalog",
+      "widget.product-search-filter",
+      "widget.supplier-management",
+      "action.create-product",
+      "action.edit-product",
+      "action.adjust-stock",
+      "action.create-supplier",
+      "component.product-service",
+      "component.supplier-service",
+      "api.products",
+      "api.suppliers",
+      "data.product",
+      "data.supplier",
+      "mock.products-json",
+      "mock.suppliers-json"
+    ],
+    "preserve_existing_behavior_by_default": true,
+    "acceptance_criteria": [
+      "Existing product create, edit, list, search, category filter, stock quantity, availability filter, Adjust Stock action, availability label, supplier creation, and product supplier selection behavior remains working.",
+      "Product list displays a supplier name for products that have supplier_id assigned to an existing supplier.",
+      "Product search/filter widget includes a supplier filter dropdown populated from existing suppliers returned by /api/suppliers.",
+      "User can filter products by supplier and see only products assigned to the selected supplier.",
+      "Clear/reset returns supplier filter to All Suppliers and reloads the full product list.",
+      "Browser/e2e uses products assigned to real supplier ids from the current baseline/API; it does not rely on supplier labels or ids that are not present in the rendered select.",
+      "Backend tests for supplier_name and supplier_id filter use explicit shared test data/storage for products and suppliers, so related lookup does not read a different mock file."
+    ],
+    "constraints": [
+      "Use --from-run with a successful products-app-supplier-selection run as baseline, for example runs/run-010-products-supplier-selection.",
+      "Treat this as extend_existing_behavior: no new screens, applications, resources, or scheme elements are required.",
+      "All selected action elements are existing screen/widget-owned actions and must be represented as resolved existing elements, not proposed new elements.",
+      "Do not create a second product catalog screen or separate product application.",
+      "Preserve supplier management widget and product supplier selection from previous slices.",
+      "Do not recreate supplier creation inside the product supplier filter e2e; supplier creation is covered by the previous supplier resource slice and may only be rerun as regression.",
+      "Do not change the Supplier model/schema. If mock data is read or extended, it must remain compatible with the current Supplier model, including contact_email when that is the model field.",
+      "Do not rewrite existing valid supplier mock records only to change demo names or ids.",
+      "Do not modify backend/app/main.py or backend/app/storage/__init__.py for this slice unless existing validation proves wiring is missing; suppliers and products routers/storage wiring already exist in the baseline.",
+      "Product service related lookup should use explicit dependency seams or shared test storage so backend tests do not read different mock files for related resources.",
+      "Extend existing backend/tests/test_products_api.py and frontend/e2e/products-crud-list-search.spec.js; do not invent product_catalog.spec.js or create duplicate product catalog browser specs.",
+      "No product delete, supplier delete, procurement workflows, external integrations, authentication, database migrations, or new dependencies.",
+      "Continue using local JSON mock storage."
+    ],
+    "non_goals": [
+      "Creating suppliers as part of the product display/filter flow.",
+      "Adding or changing supplier create/edit behavior beyond preserving previous supplier resource behavior.",
+      "Changing product supplier selection behavior from the previous slice except where needed to preserve it.",
+      "Purchase orders, contracts, scoring, procurement, external integrations, authentication, or database migrations."
+    ],
+    "notes": [
+      "Third split supplier scenario. Run after products-app-supplier-selection.",
+      "This slice is about display/filter over an existing product -> supplier relationship, not about creating the relationship itself.",
+      "Prefer runtime e2e setup that derives supplier ids/names from /api/suppliers or from the rendered select, then creates/uses products assigned to those ids."
+    ],
+    "requirement_ids": [
+      "REQ-012"
+    ]
+  },
+  "requirements_file": "requirements.json",
+  "current_prototype": {
+    "scheme_model_file": "scheme_model.json",
+    "data_sources_file": "data_sources.json",
+    "mock_plan_file": "mock_plan.json"
+  },
+  "notes": [
+    "Incremental scenario. Use after a successful run of samples/products-app-supplier-selection.",
+    "The previous baseline should already contain supplier_id selection. This slice adds supplier_name display and supplier_id filtering only."
+  ]
+}

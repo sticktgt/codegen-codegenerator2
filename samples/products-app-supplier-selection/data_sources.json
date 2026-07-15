@@ -1,0 +1,34 @@
+{
+  "data_sources": [
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON",
+      "format": "json",
+      "status": "existing",
+      "scheme_elements": [
+        "mock.products-json",
+        "data.product"
+      ],
+      "requirements": [
+        "REQ-011"
+      ],
+      "expected_change": "Products may be extended with optional supplier_id assignment data while preserving existing stock and availability behavior."
+    },
+    {
+      "id": "mock.suppliers-json",
+      "type": "mock",
+      "name": "Suppliers JSON",
+      "format": "json",
+      "status": "existing",
+      "scheme_elements": [
+        "mock.suppliers-json",
+        "data.supplier"
+      ],
+      "requirements": [
+        "REQ-011"
+      ],
+      "expected_change": "Ensure at least two schema-compatible Supplier records are available for product form selection. First inspect the current supplier model and current supplier mock storage. If the storage already contains at least two valid suppliers, keep it unchanged. If seeding is required, append records that match the current Supplier model exactly; do not replace contact_email with email/phone or otherwise change the mock schema."
+    }
+  ]
+}

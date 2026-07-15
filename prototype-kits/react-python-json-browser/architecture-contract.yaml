@@ -31,9 +31,10 @@ run_input_contract:
   rules:
     - run_input.json describes intent and constraints, not file operations.
     - implementation_slice.json is a compatibility view generated from run_input.json for prompts that still read both canonical and compatibility inputs.
-    - scheme_model.json is scheme context from the requirements/design stage. It may contain accepted elements, target elements to implement in this slice, or both. It is not proof that code artifacts already exist.
+    - scheme_model.json is scheme context from the requirements/design stage. It may contain accepted elements, target elements to implement in this slice, or both. It is not proof that code artifacts already exist, and it may be partial in incremental runs.
     - The actual implementation state is the workspace file tree. The planner must inspect existing workspace files to decide create/modify/read operations.
-    - The planner may infer additional scheme elements from run_input acceptance criteria and current scheme_model when needed.
+    - Optional baseline_context files, when present, summarize a previous successful run and may identify implemented elements that are missing from the current scheme_model.
+    - The planner may infer additional scheme elements from run_input acceptance criteria, current scheme_model, baseline_context, previous traceability, and current workspace code when needed.
 
 planner_output:
   canonical_design_delta_required: true
@@ -51,10 +52,18 @@ planner_output:
       - replace
     replace_requires_explicit_requirement: true
   element_classification:
-    resolved_existing_elements: only ids already present in scheme_model.json or explicitly listed in implementation_slice.selected_existing_elements
-    proposed_new_elements: ids introduced by the planner for the current slice and not present in scheme_model.json
+    resolved_existing_elements: ids known from scheme_model.json, implementation_slice.selected_existing_elements, baseline_context, previous traceability, or current workspace discovery
+    proposed_new_elements: ids introduced by the planner for the current slice and not known from scheme_model.json, selected_existing_elements, baseline_context, or workspace discovery
     disjoint_existing_and_new: true
     selected_by_user_source_requires_selected_existing_elements: true
+    allowed_resolved_sources:
+      - selected_by_user
+      - scheme_model
+      - baseline_discovered
+      - workspace_discovered
+      - previous_traceability
+      - resolved_by_planner
+    schema_gap_policy: resolved existing elements missing from current scheme_model are warnings/update candidates, not blockers, when they are supported by baseline or workspace evidence
   review_severity:
     metadata_classification_issue: warning_when_file_plan_is_safe
     unsafe_repurpose_existing_behavior: blocker
@@ -64,6 +73,7 @@ planner_output:
     - The planner owns resolved existing elements, proposed new elements, implementation modes, artifact types, and file operations.
     - Python validation must not rewrite artifact types or create/modify decisions to repair architectural meaning; the model must produce an internally consistent plan.
     - resolved_existing_elements and proposed_new_elements should be disjoint; if the model makes a metadata duplication but the file plan is safe, review should warn rather than block.
+    - A current scheme_model may be incomplete. If an element is discovered in baseline_context or workspace code, classify it as resolved_existing with a non-selected source and, when useful, record a schema gap/update recommendation instead of treating it as proposed_new.
     - New scheme elements implemented inside an existing screen should use implementation_mode screen_internal and name owning_artifact.
     - New scheme elements implemented by a dedicated file should use implementation_mode separate_artifact and name the planned artifact when known.
     - Existing accepted behavior is preserved by default for extend_existing_behavior slices.

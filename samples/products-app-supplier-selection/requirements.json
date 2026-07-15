@@ -1,0 +1,15 @@
+{
+  "requirements": [
+    {
+      "id": "REQ-011",
+      "text": "Пользователь может выбрать поставщика при создании или редактировании продукта.",
+      "priority": "should",
+      "status": "approved",
+      "notes": [
+        "Selection uses supplier records that already exist or are seeded in the mock data for this slice; supplier creation itself is covered by REQ-010.",
+        "Seeded supplier records must match the current generated Supplier model exactly. In the current kit this normally means id, name, and contact_email; do not invent email/phone fields.",
+        "Browser/e2e should select supplier options that actually exist in the rendered select. It should wait for option presence and use selectOption({ label: supplierName }) for label-based selection, or select by actual option value."
+      ]
+    }
+  ]
+}

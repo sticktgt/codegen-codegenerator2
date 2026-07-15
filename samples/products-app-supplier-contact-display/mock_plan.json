@@ -1,0 +1,56 @@
+{
+  "mocks": [
+    {
+      "id": "mock.suppliers-json",
+      "path": "backend/app/storage/suppliers_json_mock.json",
+      "status": "existing",
+      "records": [
+        {
+          "id": "supplier-001",
+          "name": "Acme Components",
+          "contact_email": "ops@acme-components.example"
+        },
+        {
+          "id": "supplier-002",
+          "name": "Northwind Software",
+          "contact_email": "partners@northwind-software.example"
+        }
+      ],
+      "notes": [
+        "These are example supplier records only; prefer current baseline/API records when available.",
+        "Supplier contact display should use contact_email from the actual supplier assigned to the product.",
+        "Do not introduce email or phone fields when the current Supplier model expects contact_email."
+      ]
+    },
+    {
+      "id": "mock.products-json",
+      "path": "backend/app/storage/products_json_mock.json",
+      "status": "existing_or_extend",
+      "records": [
+        {
+          "id": "product-004d-1",
+          "name": "Runtime Contact Hardware",
+          "sku": "HW-CONTACT-004D",
+          "category": "hardware",
+          "price": 179.9,
+          "stock_quantity": 8,
+          "supplier_id": "supplier-001"
+        },
+        {
+          "id": "product-004d-2",
+          "name": "Runtime Contact Software",
+          "sku": "SW-CONTACT-004D",
+          "category": "software",
+          "price": 59.0,
+          "stock_quantity": 3,
+          "supplier_id": "supplier-002"
+        }
+      ],
+      "notes": [
+        "These records are examples only. Tests may instead create runtime products assigned to supplier ids from the current suppliers API.",
+        "Any product seed used for contact display must reference supplier ids that exist in current supplier storage/API.",
+        "Preserve existing product behavior from earlier slices."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "run_input_version": 1,
+  "source": "requirements_stage",
+  "slice": {
+    "slice_id": "SLICE-004B",
+    "title": "Add supplier selection to products",
+    "goal": "Connect existing Supplier records to Product create/edit through an optional supplier_id selection, without adding supplier name display or supplier filtering yet.",
+    "change_type": "extend_existing",
+    "selected_existing_elements": [
+      "screen.product-catalog",
+      "widget.supplier-management",
+      "action.create-product",
+      "action.edit-product",
+      "action.adjust-stock",
+      "component.product-service",
+      "component.supplier-service",
+      "api.products",
+      "api.suppliers",
+      "data.product",
+      "data.supplier",
+      "mock.products-json",
+      "mock.suppliers-json"
+    ],
+    "preserve_existing_behavior_by_default": true,
+    "acceptance_criteria": [
+      "Existing product create, edit, list, search, category filter, stock quantity, availability filter, Adjust Stock action, availability label, and supplier creation behavior remains working.",
+      "At least two supplier records are available as selectable options before the product create/edit browser flow starts. If the current supplier mock storage is empty, extend the existing supplier mock storage with demo supplier records from this scenario.",
+      "Product create form includes a supplier selection using existing or seeded supplier records.",
+      "Created product payload and API response can include the selected supplier_id.",
+      "Product edit form preserves and allows changing the supplier_id assignment.",
+      "Browser/e2e for this slice extends the existing product catalog flow and selects already available supplier options; it does not create suppliers as part of the product selection flow.",
+      "No supplier filter or supplier name column is required in this slice.",
+      "If the baseline supplier mock storage already contains at least two valid Supplier records, preserve it unchanged; do not rewrite it with different field names or demo names.",
+      "Any seeded supplier records must match backend/app/models/supplier.py exactly. For the current generated supplier model, records must use contact_email rather than email or phone.",
+      "Browser/e2e must select supplier options that are actually present in the rendered product supplier select. Wait for option presence/count, then select by { label: existingSupplierName } or by actual option value; do not pass a label string as if it were a value."
+    ],
+    "constraints": [
+      "Use --from-run with a successful products-app-suppliers-resource run as baseline, for example runs/run-009-products-suppliers-resource.",
+      "Do not create a second product catalog screen or separate product application.",
+      "Preserve supplier management widget and /api/suppliers behavior from the previous slice.",
+      "Do not retest supplier creation inside the product selection e2e flow; supplier creation is covered by the previous slice and may be rerun only as regression.",
+      "Extend frontend/e2e/products-crud-list-search.spec.js for product supplier selection behavior. Do not invent product_catalog.spec.js or create a duplicate product catalog browser spec for this slice.",
+      "Do not add supplier filtering or supplier name display in this slice.",
+      "No product delete or supplier delete behavior.",
+      "No new dependencies; continue using local JSON mock storage.",
+      "Before modifying backend/app/storage/suppliers_json_mock.json, inspect backend/app/models/supplier.py and keep the mock schema compatible with Supplier.",
+      "Do not replace existing valid supplier records with records that use different field names such as email or phone.",
+      "Do not hardcode supplier option labels in browser/e2e unless those labels are guaranteed by the current mock storage or inserted fallback records.",
+      "Use the exact product supplier field anchor data-prototype-id=\"field.product-supplier-id\" consistently in the product form and e2e, unless the approved file plan explicitly selects another anchor."
+    ],
+    "non_goals": [
+      "Creating suppliers inside the product supplier selection browser flow.",
+      "Supplier filter on product list.",
+      "Supplier name display in product row.",
+      "Supplier contracts, scoring, procurement, purchase orders, external integrations, or database migrations."
+    ],
+    "requirement_ids": [
+      "REQ-011"
+    ],
+    "notes": [
+      "Second split supplier scenario. Run after products-app-suppliers-resource.",
+      "This slice tests product selection from already available supplier options. Do not recreate supplier creation flow inside the product e2e.",
+      "This slice is about selecting existing/seeded suppliers, not about changing the supplier schema.",
+      "The product e2e must derive or use a supplier label that is actually present in the select; if the selected label is absent, fix the mock data or the e2e setup before selectOption."
+    ]
+  },
+  "requirements_file": "requirements.json",
+  "current_prototype": {
+    "scheme_model_file": "scheme_model.json",
+    "data_sources_file": "data_sources.json",
+    "mock_plan_file": "mock_plan.json"
+  },
+  "notes": [
+    "Incremental scenario. Use after a successful run of samples/products-app-suppliers-resource.",
+    "Ensure supplier mock storage has demo suppliers for the product select before browser/e2e selection checks."
+  ]
+}

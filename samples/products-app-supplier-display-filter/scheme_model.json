@@ -1,0 +1,212 @@
+{
+  "scheme_id": "SCH-PRODUCTS-004C",
+  "title": "Product catalog prototype scheme - supplier display and filter",
+  "elements": [
+    {
+      "id": "screen.product-catalog",
+      "type": "screen",
+      "name": "Product Catalog",
+      "requirements": [
+        "REQ-012"
+      ],
+      "existing": true,
+      "expected_change": "Display related supplier name in product rows and pass supplier filter state without replacing the screen."
+    },
+    {
+      "id": "widget.product-search-filter",
+      "type": "widget",
+      "name": "Product Search, Category, Availability and Supplier Filter",
+      "requirements": [
+        "REQ-012"
+      ],
+      "existing": true,
+      "expected_change": "Preserve existing search/category/availability filters and add supplier filtering using existing suppliers."
+    },
+    {
+      "id": "widget.supplier-management",
+      "type": "widget",
+      "name": "Supplier Management",
+      "requirements": [],
+      "existing": true,
+      "expected_change": "Preserve supplier creation/list behavior from previous slices."
+    },
+    {
+      "id": "action.create-product",
+      "type": "action",
+      "name": "Create Product",
+      "requirements": [],
+      "existing": true,
+      "implementation_mode": "screen_internal",
+      "owned_by": "screen.product-catalog",
+      "expected_change": "Preserve existing create product behavior, including supplier_id selection added in the previous slice."
+    },
+    {
+      "id": "action.edit-product",
+      "type": "action",
+      "name": "Edit Product",
+      "requirements": [],
+      "existing": true,
+      "implementation_mode": "screen_internal",
+      "owned_by": "screen.product-catalog",
+      "expected_change": "Preserve existing edit product behavior, including supplier_id selection added in the previous slice."
+    },
+    {
+      "id": "action.adjust-stock",
+      "type": "action",
+      "name": "Adjust Stock",
+      "requirements": [],
+      "existing": true,
+      "implementation_mode": "screen_internal",
+      "owned_by": "screen.product-catalog",
+      "expected_change": "Preserve existing Adjust Stock behavior."
+    },
+    {
+      "id": "action.create-supplier",
+      "type": "action",
+      "name": "Create Supplier",
+      "requirements": [],
+      "existing": true,
+      "implementation_mode": "screen_internal",
+      "owned_by": "widget.supplier-management",
+      "expected_change": "Preserve existing supplier create behavior from the supplier resource slice."
+    },
+    {
+      "id": "component.product-service",
+      "type": "component",
+      "name": "Product Service",
+      "requirements": [
+        "REQ-012"
+      ],
+      "existing": true,
+      "expected_change": "Support supplier_id filtering and related supplier_name resolution while preserving stock and availability behavior."
+    },
+    {
+      "id": "component.supplier-service",
+      "type": "component",
+      "name": "Supplier Service",
+      "requirements": [
+        "REQ-012"
+      ],
+      "existing": true,
+      "expected_change": "Provide related supplier records for supplier_name resolution and filter options."
+    },
+    {
+      "id": "api.products",
+      "type": "api",
+      "name": "Products API",
+      "resource": "products",
+      "requirements": [
+        "REQ-012"
+      ],
+      "existing": true,
+      "expected_change": "Add optional supplier_id list query parameter and return enough data to display supplier name."
+    },
+    {
+      "id": "api.suppliers",
+      "type": "api",
+      "name": "Suppliers API",
+      "resource": "suppliers",
+      "requirements": [
+        "REQ-012"
+      ],
+      "existing": true,
+      "expected_change": "Preserve supplier list/create behavior for filter options."
+    },
+    {
+      "id": "data.product",
+      "type": "data_entity",
+      "name": "Product",
+      "existing": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sku",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "hardware",
+            "software",
+            "service"
+          ],
+          "required": true
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "stock_quantity",
+          "type": "integer",
+          "required": true,
+          "default": 0,
+          "minimum": 0
+        },
+        {
+          "name": "availability_label",
+          "type": "derived",
+          "required": false,
+          "derivation": "Out of Stock when stock_quantity == 0; Low Stock when 1 <= stock_quantity <= 5; In Stock when stock_quantity > 5"
+        },
+        {
+          "name": "supplier_id",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "supplier_name",
+          "type": "derived",
+          "required": false,
+          "derivation": "Display name resolved from supplier_id when supplier data is available"
+        }
+      ],
+      "requirements": [
+        "REQ-012"
+      ],
+      "expected_change": "Expose related supplier_name for product list display while preserving supplier_id assignment."
+    },
+    {
+      "id": "data.supplier",
+      "type": "data_entity",
+      "name": "Supplier",
+      "existing": true,
+      "requirements": [
+        "REQ-012"
+      ],
+      "expected_change": "Use existing Supplier records for display and filter values; do not change the Supplier schema."
+    },
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON Mock",
+      "existing": true,
+      "requirements": [
+        "REQ-012"
+      ],
+      "expected_change": "Preserve product storage; tests may create products with supplier_id dynamically or extend mock records with supplier_id values matching existing suppliers."
+    },
+    {
+      "id": "mock.suppliers-json",
+      "type": "mock",
+      "name": "Suppliers JSON Mock",
+      "existing": true,
+      "requirements": [
+        "REQ-012"
+      ],
+      "expected_change": "Preserve schema-compatible supplier mock storage for related-name resolution and filter options."
+    }
+  ]
+}

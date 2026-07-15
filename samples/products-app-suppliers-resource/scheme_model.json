@@ -1,0 +1,123 @@
+{
+  "scheme_id": "SCH-PRODUCTS-004A",
+  "title": "Product catalog prototype scheme - supplier resource only",
+  "elements": [
+    {
+      "id": "screen.product-catalog",
+      "type": "screen",
+      "name": "Product Catalog",
+      "requirements": [
+        "REQ-010"
+      ],
+      "existing": true,
+      "expected_change": "Embed supplier creation in the existing product catalog context without replacing the screen or changing product behavior."
+    },
+    {
+      "id": "widget.supplier-management",
+      "type": "widget",
+      "name": "Supplier Management",
+      "requirements": [
+        "REQ-010"
+      ],
+      "existing": false,
+      "implementation_mode": "separate_artifact",
+      "owning_artifact_hint": "frontend/src/widgets/SupplierManagement.jsx",
+      "expected_change": "Add a compact supplier creation UI with name and contact_email fields."
+    },
+    {
+      "id": "action.create-supplier",
+      "type": "action",
+      "name": "Create Supplier",
+      "requirements": [
+        "REQ-010"
+      ],
+      "existing": false,
+      "implementation_mode": "screen_internal",
+      "owning_artifact_hint": "frontend/src/widgets/SupplierManagement.jsx",
+      "expected_change": "Create supplier records from the supplier management widget."
+    },
+    {
+      "id": "component.supplier-service",
+      "type": "component",
+      "name": "Supplier Service",
+      "requirements": [
+        "REQ-010"
+      ],
+      "existing": false,
+      "implementation_mode": "separate_artifact",
+      "owning_artifact_hint": "backend/app/services/supplier_service.py",
+      "expected_change": "Add supplier create/list behavior over local JSON mock storage."
+    },
+    {
+      "id": "api.suppliers",
+      "type": "api",
+      "name": "Suppliers API",
+      "resource": "suppliers",
+      "requirements": [
+        "REQ-010"
+      ],
+      "existing": false,
+      "implementation_mode": "separate_artifact",
+      "owning_artifact_hint": "backend/app/api/suppliers.py",
+      "expected_change": "Add /api/suppliers list and create endpoints."
+    },
+    {
+      "id": "data.supplier",
+      "type": "data_entity",
+      "name": "Supplier",
+      "existing": false,
+      "implementation_mode": "separate_artifact",
+      "owning_artifact_hint": "backend/app/models/supplier.py",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "contact_email",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "requirements": [
+        "REQ-010"
+      ],
+      "expected_change": "Add a lightweight Supplier entity for local prototype data."
+    },
+    {
+      "id": "mock.suppliers-json",
+      "type": "mock",
+      "name": "Suppliers JSON Mock",
+      "requirements": [
+        "REQ-010"
+      ],
+      "existing": false,
+      "implementation_mode": "separate_artifact",
+      "owning_artifact_hint": "backend/app/storage/suppliers_json_mock.json",
+      "expected_change": "Add local JSON mock storage for suppliers."
+    },
+    {
+      "id": "api.products",
+      "type": "api",
+      "name": "Products API",
+      "resource": "products",
+      "requirements": [],
+      "existing": true,
+      "expected_change": "Preserve existing product API behavior without supplier linkage in this slice."
+    },
+    {
+      "id": "data.product",
+      "type": "data_entity",
+      "name": "Product",
+      "existing": true,
+      "requirements": [],
+      "expected_change": "Preserve existing product fields and behavior; do not add supplier_id in this slice."
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "requirements": [
+    {
+      "id": "REQ-012",
+      "text": "В списке продуктов отображается название поставщика, и пользователь может фильтровать продукты по поставщику.",
+      "priority": "should",
+      "status": "approved",
+      "notes": [
+        "This slice starts from a successful product supplier selection baseline: Product already has optional supplier_id and product create/edit can select an existing supplier.",
+        "Supplier records must already be available through /api/suppliers or existing schema-compatible mock storage from previous slices; this slice should not recreate supplier management or change the Supplier schema.",
+        "Browser/e2e should use supplier ids/names that actually exist in the current suppliers API response or created runtime test data; do not hardcode supplier labels that are not guaranteed by the current baseline."
+      ]
+    }
+  ]
+}

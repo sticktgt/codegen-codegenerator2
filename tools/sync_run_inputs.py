@@ -18,6 +18,10 @@ RUN_CONTEXT_INPUT_FILES = [
     "run_input.json",
 ]
 
+RUN_CONTEXT_INPUT_DIRS = [
+    "baseline_context",
+]
+
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     if not path.exists():
@@ -121,6 +125,10 @@ def sync_run_inputs(run: Path, *, root: Path, kit: Path | None = None) -> dict[s
                 if not dst.exists() or src.read_bytes() != dst.read_bytes():
                     shutil.copy2(src, dst)
                     actions.append(f"mirror_run_input_{src.name}")
+            elif src.is_dir() and src.name in RUN_CONTEXT_INPUT_DIRS:
+                dst = workspace_input / src.name
+                if _copytree_clean_if_exists(src, dst):
+                    actions.append(f"mirror_run_input_dir_{src.name}")
 
     result = {
         "run": str(run),

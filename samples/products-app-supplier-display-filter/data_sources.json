@@ -1,0 +1,34 @@
+{
+  "data_sources": [
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON",
+      "format": "json",
+      "status": "existing_or_extend",
+      "scheme_elements": [
+        "mock.products-json",
+        "data.product"
+      ],
+      "requirements": [
+        "REQ-012"
+      ],
+      "expected_change": "Preserve product records. If seeded product records are needed for backend tests, their supplier_id values must reference supplier ids that exist in the current supplier mock/API."
+    },
+    {
+      "id": "mock.suppliers-json",
+      "type": "mock",
+      "name": "Suppliers JSON",
+      "format": "json",
+      "status": "existing",
+      "scheme_elements": [
+        "mock.suppliers-json",
+        "data.supplier"
+      ],
+      "requirements": [
+        "REQ-012"
+      ],
+      "expected_change": "Use current schema-compatible Supplier records to resolve supplier names and populate supplier filter options; do not change supplier schema or replace valid records."
+    }
+  ]
+}

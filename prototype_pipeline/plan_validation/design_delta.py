@@ -64,12 +64,14 @@ def validate_design_delta(
         warnings,
     )
     _validate_proposed_new_shape(design, output_contract, blockers, warnings)
-    _validate_referenced_new_elements(
+    _validate_referenced_scheme_elements(
         existing_ids,
+        resolved_existing,
         proposed_new,
         normalized_entries,
         validation_scheme_ids or set(),
         blockers,
+        warnings,
     )
     _validate_preservation_decisions(
         preserve_default,
@@ -141,7 +143,12 @@ def _validate_existing_new_classification(
             warnings.append({
                 "code": "design_delta_resolved_existing_not_in_current_scheme",
                 "scheme_element_id": element_id,
-                "message": "resolved_existing_elements should reference ids present in scheme_model.json or selected_existing_elements.",
+                "source": item.get("source"),
+                "message": (
+                    "resolved_existing_elements references an id absent from the current scheme_model.json "
+                    "and implementation_slice.selected_existing_elements. This is allowed for workspace/baseline "
+                    "discovered elements, but should be treated as a schema gap/update candidate."
+                ),
             })
         if item.get("source") == "selected_by_user" and element_id not in selected_existing:
             warnings.append({
@@ -192,22 +199,52 @@ def _validate_proposed_new_shape(
             })
 
 
-def _validate_referenced_new_elements(
+def _validate_referenced_scheme_elements(
     existing_ids: set[str],
+    resolved_existing: set[str],
     proposed_new: set[str],
     normalized_entries: list[dict[str, Any]],
     validation_scheme_ids: set[str],
     blockers: list[dict[str, Any]],
+    warnings: list[dict[str, Any]],
 ) -> None:
+    """Validate scheme element references without treating scheme_model as complete.
+
+    ``scheme_model.json`` is analyst/design context and may be partial in
+    incremental runs. A plan may legitimately reference an existing element that
+    the planner discovered from the current workspace or previous baseline
+    context and classified in ``design_delta.resolved_existing_elements``. Such
+    references are schema gaps, not blockers. A blocker is reserved for an
+    element that is referenced by file/validation plans but is neither known in
+    the current scheme, nor resolved as existing, nor proposed as new.
+    """
     referenced: set[str] = set(validation_scheme_ids)
     for entry in normalized_entries:
         referenced.update(_entry_scheme_ids(entry))
-    missing = sorted(s for s in referenced if s not in existing_ids and s not in proposed_new)
+
+    known = existing_ids | resolved_existing | proposed_new
+    missing = sorted(s for s in referenced if s not in known)
     if missing:
         blockers.append({
             "code": "new_scheme_elements_not_in_design_delta",
             "scheme_element_ids": missing,
-            "message": "Any new scheme element referenced by file_plan or validation_plan must be listed in design_delta.proposed_new_elements.",
+            "message": (
+                "Scheme elements referenced by file_plan or validation_plan must be "
+                "present in scheme_model.json, resolved in design_delta.resolved_existing_elements, "
+                "or introduced in design_delta.proposed_new_elements."
+            ),
+        })
+
+    schema_gaps = sorted(s for s in referenced if s in resolved_existing and s not in existing_ids)
+    if schema_gaps:
+        warnings.append({
+            "code": "referenced_existing_elements_missing_from_current_scheme",
+            "scheme_element_ids": schema_gaps,
+            "message": (
+                "Referenced elements were resolved as existing by the planner but are absent from "
+                "the current scheme_model.json. Treat this as a schema gap/update candidate, not "
+                "as a new implementation element."
+            ),
         })
 
 

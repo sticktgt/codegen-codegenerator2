@@ -1,0 +1,63 @@
+{
+  "slice_id": "SLICE-004D",
+  "title": "Display supplier contact email in product list",
+  "requirements": [
+    "REQ-013"
+  ],
+  "goal": "Show the assigned supplier contact email in the product list, after supplier assignment, supplier name display, and supplier filtering already exist.",
+  "change_type": "extend_existing_behavior",
+  "selected_existing_elements": [
+    "screen.product-catalog",
+    "widget.product-search-filter",
+    "widget.supplier-management",
+    "action.create-product",
+    "action.edit-product",
+    "action.adjust-stock",
+    "action.create-supplier",
+    "component.product-service",
+    "component.supplier-service",
+    "api.products",
+    "api.suppliers",
+    "data.product",
+    "data.supplier",
+    "mock.products-json",
+    "mock.suppliers-json"
+  ],
+  "preserve_existing_behavior_by_default": true,
+  "acceptance_criteria": [
+    "Existing product create, edit, list, search, category filter, availability filter, supplier filter, supplier name display, Adjust Stock action, supplier creation, and product supplier selection behavior remains working.",
+    "Product list displays supplier contact email for products that have supplier_id assigned to an existing supplier with contact_email.",
+    "Products without assigned supplier display an empty fallback such as an em dash for supplier contact email.",
+    "When editing a product to select a different supplier, the product row updates to show the contact_email of the currently selected supplier.",
+    "Backend /api/products response includes supplier_contact_email or an equivalent response field that can be rendered by the product list.",
+    "Backend tests for supplier_contact_email use explicit shared test data/storage or provider composition so related lookup does not read a different supplier source.",
+    "Browser/e2e uses supplier ids and contact_email values returned by the current suppliers API or created runtime data; it does not assume a hard-coded first option remains the product's current supplier."
+  ],
+  "constraints": [
+    "Use --from-run with a successful products-app-supplier-display-filter run as baseline, for example runs/run-011-products-supplier-display-filter.",
+    "Treat this as extend_existing_behavior: no new screens, applications, resources, or external integrations are required.",
+    "Do not create a second product catalog screen or separate product application.",
+    "Preserve supplier management widget, product supplier selection, supplier name display, and supplier filter from previous slices.",
+    "Do not recreate supplier creation inside the product contact display e2e; supplier creation is already covered by previous slices and may only be rerun as regression.",
+    "Do not change the Supplier model/schema. Use the existing contact_email field when present in the current Supplier model/API.",
+    "Do not rewrite existing valid supplier mock records only to change demo names, ids, or emails.",
+    "Do not modify backend/app/main.py or backend/app/storage/__init__.py for this slice unless existing validation proves wiring is missing.",
+    "If a product response field is needed for supplier contact email, include the owning Product model/DTO/schema file in the file plan rather than modifying it unexpectedly.",
+    "Related supplier contact resolution should use explicit dependency seams, provider composition, or shared test storage so backend tests do not read different mock files for related resources.",
+    "Extend existing backend/tests/test_products_api.py and frontend/e2e/products-crud-list-search.spec.js; do not create a new product_catalog.spec.js or duplicate product catalog browser spec.",
+    "No product delete, supplier delete, procurement workflows, authentication, database migrations, or new dependencies.",
+    "Continue using local JSON mock storage."
+  ],
+  "non_goals": [
+    "Adding a new supplier filter or changing supplier filter semantics.",
+    "Changing supplier create/edit behavior beyond preserving previous supplier resource behavior.",
+    "Adding procurement, purchase order, contract, warehouse, supplier scoring, or external integration logic.",
+    "Adding validation that supplier contact email exists when selecting supplier; display fallback is acceptable for missing related data in this prototype."
+  ],
+  "validation_expectations": [
+    "Extend backend product API tests to verify supplier_contact_email is returned for a product assigned to a supplier with contact_email.",
+    "Extend backend product API tests to verify supplier_contact_email updates when a product's supplier_id changes or when listing products after supplier assignment.",
+    "Extend existing product e2e to verify the product row displays the contact_email for the current assigned supplier.",
+    "Rerun existing supplier filter/name display/product regression behavior."
+  ]
+}

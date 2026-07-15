@@ -1,0 +1,336 @@
+{
+  "scheme_id": "SCH-PRODUCTS-004",
+  "title": "Product catalog prototype scheme - supplier extension",
+  "elements": [
+    {
+      "id": "screen.product-catalog",
+      "type": "screen",
+      "name": "Product Catalog",
+      "requirements": [
+        "REQ-010",
+        "REQ-011",
+        "REQ-012"
+      ],
+      "existing": true,
+      "expected_change": "Extend the existing product catalog with supplier create/selection/display/filtering without replacing the screen."
+    },
+    {
+      "id": "widget.product-search-filter",
+      "type": "widget",
+      "name": "Product Search, Category, Availability and Supplier Filter",
+      "requirements": [
+        "REQ-012"
+      ],
+      "existing": true,
+      "expected_change": "Preserve existing search/category/availability filters and add supplier filtering."
+    },
+    {
+      "id": "widget.supplier-management",
+      "type": "widget",
+      "name": "Supplier Management",
+      "requirements": [
+        "REQ-010"
+      ],
+      "existing": false,
+      "implementation_mode": "separate_artifact",
+      "owning_artifact_hint": "frontend/src/widgets/SupplierManagement.jsx",
+      "expected_change": "Add a compact supplier creation UI in the product catalog prototype context."
+    },
+    {
+      "id": "action.create-product",
+      "type": "action",
+      "name": "Create Product",
+      "requirements": [
+        "REQ-011"
+      ],
+      "existing": true,
+      "expected_change": "Extend existing create product behavior so a supplier can be selected while preserving existing fields."
+    },
+    {
+      "id": "action.edit-product",
+      "type": "action",
+      "name": "Edit Product",
+      "requirements": [
+        "REQ-011"
+      ],
+      "existing": true,
+      "expected_change": "Extend existing edit product behavior so the product supplier can be changed while preserving existing edit fields."
+    },
+    {
+      "id": "action.adjust-stock",
+      "type": "action",
+      "name": "Adjust Stock",
+      "requirements": [],
+      "existing": true,
+      "expected_change": "Preserve existing Adjust Stock behavior."
+    },
+    {
+      "id": "action.create-supplier",
+      "type": "action",
+      "name": "Create Supplier",
+      "requirements": [
+        "REQ-010"
+      ],
+      "existing": false,
+      "implementation_mode": "screen_internal",
+      "owning_artifact_hint": "frontend/src/widgets/SupplierManagement.jsx",
+      "expected_change": "Create supplier records with name and contact_email."
+    },
+    {
+      "id": "component.product-service",
+      "type": "component",
+      "name": "Product Service",
+      "requirements": [
+        "REQ-011",
+        "REQ-012"
+      ],
+      "existing": true,
+      "expected_change": "Persist supplier assignment on products and support supplier filtering if implemented server-side. Preserve stock and availability behavior."
+    },
+    {
+      "id": "component.supplier-service",
+      "type": "component",
+      "name": "Supplier Service",
+      "requirements": [
+        "REQ-010",
+        "REQ-011",
+        "REQ-012"
+      ],
+      "existing": false,
+      "implementation_mode": "separate_artifact",
+      "owning_artifact_hint": "backend/app/services/supplier_service.py",
+      "expected_change": "Add supplier create/list behavior over local JSON mock storage."
+    },
+    {
+      "id": "api.products",
+      "type": "api",
+      "name": "Products API",
+      "resource": "products",
+      "requirements": [
+        "REQ-011",
+        "REQ-012"
+      ],
+      "existing": true,
+      "expected_change": "Preserve existing /api/products behavior and extend it for supplier_id create/edit and optional supplier_id filtering."
+    },
+    {
+      "id": "api.suppliers",
+      "type": "api",
+      "name": "Suppliers API",
+      "resource": "suppliers",
+      "requirements": [
+        "REQ-010",
+        "REQ-011",
+        "REQ-012"
+      ],
+      "existing": false,
+      "implementation_mode": "separate_artifact",
+      "owning_artifact_hint": "backend/app/api/suppliers.py",
+      "expected_change": "Add /api/suppliers list and create endpoints for local supplier records."
+    },
+    {
+      "id": "data.product",
+      "type": "data_entity",
+      "name": "Product",
+      "existing": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sku",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "hardware",
+            "software",
+            "service"
+          ],
+          "required": true
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "stock_quantity",
+          "type": "integer",
+          "required": true,
+          "default": 0,
+          "minimum": 0
+        },
+        {
+          "name": "availability_label",
+          "type": "derived",
+          "required": false,
+          "derivation": "Out of Stock when stock_quantity == 0; Low Stock when 1 <= stock_quantity <= 5; In Stock when stock_quantity > 5"
+        },
+        {
+          "name": "supplier_id",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "supplier_name",
+          "type": "derived",
+          "required": false,
+          "derivation": "Display name resolved from supplier_id when supplier data is available"
+        }
+      ],
+      "requirements": [
+        "REQ-011",
+        "REQ-012"
+      ],
+      "expected_change": "Add supplier assignment to Product while preserving existing product fields and derived availability label."
+    },
+    {
+      "id": "data.supplier",
+      "type": "data_entity",
+      "name": "Supplier",
+      "existing": false,
+      "implementation_mode": "separate_artifact",
+      "owning_artifact_hint": "backend/app/models/supplier.py",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "contact_email",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "requirements": [
+        "REQ-010",
+        "REQ-011",
+        "REQ-012"
+      ],
+      "expected_change": "Add Supplier entity with name and contact_email for local prototype use."
+    },
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON",
+      "requirements": [
+        "REQ-011",
+        "REQ-012"
+      ],
+      "existing": true,
+      "expected_change": "Preserve product mock storage and add supplier_id values where useful for demo filtering."
+    },
+    {
+      "id": "mock.suppliers-json",
+      "type": "mock",
+      "name": "Suppliers JSON",
+      "requirements": [
+        "REQ-010",
+        "REQ-011",
+        "REQ-012"
+      ],
+      "existing": false,
+      "implementation_mode": "separate_artifact",
+      "owning_artifact_hint": "backend/app/storage/suppliers_json_mock.json",
+      "expected_change": "Add local JSON mock records for suppliers."
+    }
+  ],
+  "relations": [
+    {
+      "from": "screen.product-catalog",
+      "to": "widget.product-search-filter",
+      "type": "contains"
+    },
+    {
+      "from": "screen.product-catalog",
+      "to": "widget.supplier-management",
+      "type": "contains"
+    },
+    {
+      "from": "widget.supplier-management",
+      "to": "action.create-supplier",
+      "type": "contains"
+    },
+    {
+      "from": "screen.product-catalog",
+      "to": "action.create-product",
+      "type": "contains"
+    },
+    {
+      "from": "screen.product-catalog",
+      "to": "action.edit-product",
+      "type": "contains"
+    },
+    {
+      "from": "screen.product-catalog",
+      "to": "action.adjust-stock",
+      "type": "contains"
+    },
+    {
+      "from": "screen.product-catalog",
+      "to": "component.product-service",
+      "type": "uses"
+    },
+    {
+      "from": "screen.product-catalog",
+      "to": "component.supplier-service",
+      "type": "uses"
+    },
+    {
+      "from": "component.product-service",
+      "to": "api.products",
+      "type": "exposed_by"
+    },
+    {
+      "from": "component.supplier-service",
+      "to": "api.suppliers",
+      "type": "exposed_by"
+    },
+    {
+      "from": "component.product-service",
+      "to": "data.product",
+      "type": "reads_writes"
+    },
+    {
+      "from": "component.supplier-service",
+      "to": "data.supplier",
+      "type": "reads_writes"
+    },
+    {
+      "from": "data.product",
+      "to": "data.supplier",
+      "type": "references"
+    },
+    {
+      "from": "data.product",
+      "to": "mock.products-json",
+      "type": "stored_in"
+    },
+    {
+      "from": "data.supplier",
+      "to": "mock.suppliers-json",
+      "type": "stored_in"
+    }
+  ],
+  "notes": [
+    "This scheme describes an incremental structural extension of the products-app prototype with a second resource.",
+    "The planner should preserve existing product behavior and add supplier support through focused modify operations and supplier-owned new files."
+  ]
+}

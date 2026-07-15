@@ -11,6 +11,7 @@ Read:
 - prototype/output/validation_plan_proposal.json
 - prototype/input/requirements.json
 - prototype/input/scheme_model.json
+- prototype/input/baseline_context/*.json, if present
 - prototype/input/run_input.json, if present
 - prototype/input/implementation_slice.json
 - prototype/input/kit.yaml
@@ -38,27 +39,38 @@ Check:
 - Are any backend/frontend layers missing?
 - Does the plan derive affected existing elements and proposed new elements from the requirement intent rather than assuming they were predeclared by the analyst?
 - Does the plan use canonical `design_delta` only, with no deprecated `scheme_delta` substitute?
-- Does every new scheme element referenced by file operations or validation checks appear in `design_delta.proposed_new_elements`?
+- Does every scheme element referenced by file operations or validation checks appear in one of the accepted categories: current `scheme_model.json`, `design_delta.resolved_existing_elements`, or `design_delta.proposed_new_elements`?
+- If an element is absent from the current scheme_model but present in baseline_context or discoverable in workspace code, is it classified as resolved existing with a baseline/workspace source rather than proposed as new?
 - If the slice extends existing behavior, does the plan preserve existing accepted behavior by default?
 - Does the plan avoid repurposing existing artifacts with stable responsibilities when a wrapper, UI state, or new artifact would be sufficient?
 - If the plan modifies an existing artifact, does `design_delta.preservation_decisions` explain why reuse/wrapping is insufficient and what behavior remains preserved?
 - For scheme actions without a dedicated file, including existing actions from `scheme_model.json`, does `implementation_mode: "screen_internal"` name an `owning_artifact` and is the owning artifact allowed by the file plan?
 - For dedicated files, does `implementation_mode: "separate_artifact"` align with the proposed file plan?
 - Does the plan avoid unnecessary dependencies, and are any proposed dependency/package changes explicitly allowed by the contract, included in the file plan, and justified?
+- Are `must_modify` file-plan rows limited to files that truly need semantic changes? Warn if a file is marked `must_modify` only because it is related to the requirement, while the plan itself could satisfy the behavior in another file such as a model computed field.
+- For incremental slices, does each derived value or small extension have a precise owner? If the model can compute a derived response field, the service/API should not be forced to change unless it performs real filtering/mapping/persistence/endpoint work.
+- If the plan adds a response field, derived display field, query-supported field, or relationship field that must be serialized through a model/DTO/schema, is that owning model/DTO/schema file explicitly in the file plan? Warn or block if implementation would have to modify an unplanned response model file to pass validation.
 - Does the validation plan use explicit `validation_intent` for executable test-file checks, while omitting `validation_intent` for non-file checks such as `ui_static`?
 - For preserved existing behavior, does the validation plan prefer `rerun_existing` before modifying or creating tests?
 - If the plan proposes `extend_existing_test` or `create_new_test`, is there a clear acceptance-criteria gap that existing tests do not cover?
+- For each executable validation check, compare `proposed_file` with current workspace files and file_plan:
+  - If `validation_intent` is `create_new_test` / `create_behavior_test` but the file already exists, treat this as a blocker because implementation may overwrite existing tests. It should be `extend_existing_test` / `extend_behavior_test` or `rerun_existing` / `rerun_behavior_test`.
+  - If a test file is existing and writable, the implementation plan must preserve existing tests and add only the missing coverage.
+  - If the file is read-only, validation intent must be rerun-only.
 - If the slice changes UI behavior and `frontend_behavior` is enabled, does the validation plan include an executable browser/e2e behavior check with a behavior validation intent and a proposed file under an allowed e2e root?
 - Is browser/e2e coverage lean for the slice? For one coherent CRUD/list/search screen, prefer one compact browser spec linked to multiple requirements; warn if the plan creates many independent browser specs or browser tests for edge cases that backend pytest should cover.
 - If `frontend_behavior` is disabled, does the plan avoid unsupported browser/e2e test files and make the limitation explicit while still requiring `ui_static` checks?
 - If formal plan validation already passed, do not block solely because design_delta metadata could be cleaner; warn and allow implementation when the file plan is safe.
+- If formal plan validation warns that resolved existing elements are missing from the current scheme_model, treat this as a schema gap/update candidate, not as a blocker, when the file plan is safe and baseline/workspace evidence exists.
 
 Review guidance:
 - Prefer a working, safe implementation plan over blocking on planner-output metadata issues that do not change implementation safety.
 - Use `blocker` only when the plan would likely produce unsafe, incorrect, unbounded, or unimplementable code changes, or when it repurposes existing behavior without explicit requirement support.
+- Treat an unnecessary `must_modify` policy as a warning unless it makes the plan unsafe, unbounded, or likely to overwrite existing behavior. Do not block an otherwise safe prototype plan solely because a related file may remain unchanged.
 - Use `warning` for design_delta classification/source-attribution issues or non-critical validation-intent issues when the file plan is still safe and minimal, for example:
   - a new element appears in both `resolved_existing_elements` and `proposed_new_elements`, but the file plan implements it safely as `screen_internal`;
   - `source` is incorrectly set to `selected_by_user`, but no unsafe file operation follows from it;
+  - an existing element is discovered from baseline/workspace but missing from the current scheme_model;
   - an existing test file is referenced for regression validation with `validation_intent: "rerun_existing"`;
   - an existing test file is proposed for modification, but rerunning existing tests would probably be enough.
 - Tests are required when behavior changes, but a test file should be modified only when existing executable tests do not cover the relevant acceptance criterion.
@@ -96,3 +108,8 @@ Final action requirement:
 
 
 Also review requirement coverage: every requirement in `implementation_slice.requirements` must appear in implementation files and validation checks.
+Multi-resource incremental review:
+- If a child-widget action is listed as owned by the parent screen while the actual clickable control will live in the child widget, issue at least a warning and recommend moving ownership to the child widget. Treat it as a blocker when the file plan would force wrapper anchors or duplicate action anchors in the parent just to satisfy UI static checks.
+- Review service dependencies for linked resources. If a primary resource service is expected to return a related resource display field, but the plan does not provide a way to inject or share the related service/storage in API tests, warn strongly or block when backend validation depends on temp storage isolation.
+- For multi-service FastAPI plans, check whether the plan explicitly preserves the primary provider as the owner of primary storage. Warn strongly if the plan says the endpoint will create a new primary service in the route handler to attach a related service; recommend composing the related service in the primary provider instead.
+- A parent screen embedding a child widget does not automatically own every action inside that widget. The owning artifact should be the file that contains the actual user control.

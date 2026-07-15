@@ -6,7 +6,8 @@ When asked to plan a slice:
 
 - Read `prototype/input/run_input.json` when it is present. This is the canonical scenario input from the requirements stage.
 - Treat `prototype/input/implementation_slice.json` as a compatibility view generated from `run_input.json` for the current pipeline.
-- Read `prototype/input/scheme_model.json` as scheme context from requirements/design. A listed scheme element is not proof that its implementation file already exists.
+- Read `prototype/input/scheme_model.json` as scheme context from requirements/design. A listed scheme element is not proof that its implementation file already exists, and the scheme may be partial in incremental runs.
+- Read `prototype/input/baseline_context/*.json` when present. These files are read-only semantic context from the previous successful run, not file-change instructions.
 - Read `prototype/input/architecture-contract.yaml` and follow the artifact types, path placement rules, validation capabilities, validation intent rules, and UI conventions declared there.
 - Read `instructions/architecture.md` as the human-readable architecture rules for layers, owned artifacts, and skeleton/integration files.
 - Do not edit production source files.
@@ -14,6 +15,7 @@ When asked to plan a slice:
 - Produce `prototype/output/validation_plan_proposal.json` when validation checks or tests are part of the plan.
 - Do not rely on static pre-generated file names. New file names must come from the proposed design delta, the current project structure, and the architecture contract.
 - `run_input.json` describes requirement intent and optional selected existing elements. It does not prescribe file operations, new scheme element ids, test file names, or implementation artifact names.
+- When an incremental slice references an element missing from the current scheme_model, inspect baseline_context and workspace code before treating it as new. If it is already implemented or previously traced, classify it as resolved existing and record a schema gap/update candidate.
 - Prefer the smallest safe change set that satisfies the acceptance criteria and preserves already accepted behavior.
 - If a new file is needed, include `artifact_type`, `operation`, `policy`, `path`, `reason`, `requirement_id(s)`, and `scheme_element_id(s)`.
 - Use existing files when the architecture contract says the element is an integration point or when the feature is a small extension of existing behavior.
@@ -55,6 +57,7 @@ A plan proposal should include canonical `design_delta`, not deprecated `scheme_
     "change_type": "extend_existing_behavior",
     "resolved_existing_elements": [],
     "proposed_new_elements": [],
+    "schema_gaps": [],
     "preservation_decisions": []
   },
   "file_plan_draft": {
@@ -69,12 +72,30 @@ A plan proposal should include canonical `design_delta`, not deprecated `scheme_
 
 Do not include package/dependency files in normal implementation plans. If a dependency is needed, write a dependency request as a limitation instead of modifying package manifests.
 
+## Scheme context and baseline discovery
+
+`scheme_model.json` is an analyst/design context snapshot, not a complete mandatory registry of every element in the codebase. In incremental runs, classify element ids as follows:
+
+- `resolved_existing_elements` for ids present in `scheme_model.json`, explicitly selected by the slice, found in `prototype/input/baseline_context`, previous traceability, or discovered in current workspace code.
+- `proposed_new_elements` only for ids introduced by the current slice and not known from scheme_model, selected elements, baseline context, previous traceability, or workspace discovery.
+- `schema_gaps` for existing/discovered elements that are absent from the current scheme_model and should later be added to an analyst-facing schema.
+
+Do not create artificial proposed-new elements merely to satisfy validation when the element is already present in the baseline app. Conversely, if an element is not present in the scheme, not discoverable in baseline/code, and still appears in file/validation plans, either propose it as new with an implementation mode or remove the reference.
+
 
 Browser kit rule:
 - This kit variant enables executable `frontend_behavior` validation.
 - When a slice changes user-visible UI behavior, propose at least one browser/e2e behavior check (`ui_behavior`, `browser_e2e`, or `e2e`) in addition to `ui_static` checks.
 - For a new behavior test, use `validation_intent: "create_behavior_test"` and a `proposed_file` under `frontend/e2e/` or `frontend/tests/e2e/`.
 - Browser behavior tests should exercise the actual running frontend through Playwright and may use the existing backend API through the Vite proxy.
+
+## File policy strength: must_modify vs may_modify
+
+Use `must_modify` only for files that must receive a semantic code/content change for the slice to be correct. Use `may_modify` for files that are likely implementation locations but could remain unchanged after reading the existing code. Use `read`/`read_only` for files needed only as context or regression inputs.
+
+Do not require a file to change just because it belongs to a related layer or helps traceability. In incremental slices, first decide the precise owner of the new behavior. If a derived field can be provided cleanly as a model computed field, the service/API layer should not be `must_modify` unless it also needs real filtering, mapping, endpoint, or persistence logic changes.
+
+For every `must_modify` row, the reason should describe a concrete expected semantic change in that file, such as “add `stock_quantity` to ProductUpdate” or “add `availability` filtering to list_products”. If the reason is “inspect existing behavior”, “preserve behavior”, “reuse endpoint”, or “verify anchors”, the file should not be `must_modify`.
 
 ## Existing skeleton and integration files
 

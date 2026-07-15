@@ -1,0 +1,39 @@
+{
+  "slice_id": "SLICE-004A",
+  "title": "Add supplier resource",
+  "requirements": [
+    "REQ-010"
+  ],
+  "goal": "Add Supplier as a second lightweight resource in the existing stock-enabled products-app without connecting products to suppliers yet.",
+  "change_type": "extend_existing",
+  "selected_existing_elements": [
+    "screen.product-catalog",
+    "api.products",
+    "data.product",
+    "mock.products-json"
+  ],
+  "preserve_existing_behavior_by_default": true,
+  "acceptance_criteria": [
+    "Existing product create, edit, list, search, category filter, stock quantity, availability filter, Adjust Stock action, and availability label behavior remains working.",
+    "User can create a supplier with name and contact email in the existing product catalog prototype context.",
+    "User can see newly created supplier records in the supplier management UI or supplier API response.",
+    "The slice adds supplier-owned model/service/API/storage/UI files without changing product-supplier relationships yet.",
+    "The incremental run extends the existing product catalog implementation rather than creating a separate unrelated app."
+  ],
+  "constraints": [
+    "Use the previous adjusted-stock products-app run as the baseline via --from-run, for example runs/run-007-products-adjust-stock.",
+    "Preserve existing /api/products route and root ProductCatalogScreen.",
+    "Do not add supplier_id to Product in this slice.",
+    "Do not add supplier filter or supplier name display in the product list in this slice.",
+    "Add suppliers as a second lightweight resource: supplier model, supplier service, supplier API, supplier mock JSON, and compact supplier management widget are allowed.",
+    "No product delete or supplier delete behavior.",
+    "No purchase orders, contracts, procurement workflow, authentication, external integrations, database migrations, or new dependencies.",
+    "Continue using local JSON mock storage."
+  ],
+  "non_goals": [
+    "Connecting products to suppliers.",
+    "Supplier filtering on products.",
+    "Supplier contracts, scoring, procurement, or purchase orders.",
+    "External integrations or persistent database migrations."
+  ]
+}

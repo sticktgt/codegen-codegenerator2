@@ -38,6 +38,19 @@ KIT_BASELINE_OVERLAY_FILES = [
 ]
 
 
+BASELINE_CONTEXT_FILES = [
+    "run_summary.json",
+    "scenario_result.json",
+    "code_traceability.json",
+    "changed_files.json",
+    "change_manifest.json",
+    "file_plan.json",
+    "validation_plan.json",
+    "validation_result.json",
+    "ui_static_check_result.json",
+]
+
+
 def _remove_runtime(workspace: Path) -> None:
     for rel in RUNTIME_DIRS:
         path = workspace / rel
@@ -70,6 +83,31 @@ def _copy_kit_runtime(kit: Path, workspace: Path) -> None:
         if src.exists():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
+
+
+def _copy_baseline_context(from_run: Path, input_dir: Path, workspace_input: Path) -> None:
+    """Expose previous successful run outputs as read-only planning context.
+
+    Incremental workspaces already contain the previous source tree, so OpenCode
+    can inspect code directly. These artifacts add semantic context that is not
+    always obvious from code alone: previous traceability, accepted file plans,
+    change manifests, and validation summaries. Missing files are fine because
+    older runs may not have produced every artifact.
+    """
+    candidates = [from_run / "output", from_run / "workspace" / "prototype" / "output"]
+    copied: list[str] = []
+    for source_dir in candidates:
+        if not source_dir.exists():
+            continue
+        for name in BASELINE_CONTEXT_FILES:
+            src = source_dir / name
+            if not src.exists() or name in copied:
+                continue
+            for root in [input_dir, workspace_input]:
+                dst = root / "baseline_context" / name
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst)
+            copied.append(name)
 
 
 def main() -> None:
@@ -120,6 +158,8 @@ def main() -> None:
         if src.exists():
             shutil.copy2(src, input_dir / name)
             shutil.copy2(src, workspace_input / name)
+
+    _copy_baseline_context(args.from_run, input_dir, workspace_input)
 
     # Optional input artifacts prepared by a previous phase can be carried in.
     for name in ["file_plan.json", "validation_plan.json"]:

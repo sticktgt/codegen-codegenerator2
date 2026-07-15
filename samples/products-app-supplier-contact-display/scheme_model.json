@@ -1,0 +1,233 @@
+{
+  "scheme_id": "SCH-PRODUCTS-004D",
+  "title": "Product catalog prototype scheme - supplier contact display",
+  "elements": [
+    {
+      "id": "screen.product-catalog",
+      "type": "screen",
+      "name": "Product Catalog",
+      "requirements": [
+        "REQ-013"
+      ],
+      "existing": true,
+      "expected_change": "Display related supplier contact email in product rows without replacing the screen."
+    },
+    {
+      "id": "widget.product-search-filter",
+      "type": "widget",
+      "name": "Product Search, Category, Availability and Supplier Filter",
+      "requirements": [],
+      "existing": true,
+      "expected_change": "Preserve existing search/category/availability/supplier filters."
+    },
+    {
+      "id": "widget.supplier-management",
+      "type": "widget",
+      "name": "Supplier Management",
+      "requirements": [],
+      "existing": true,
+      "expected_change": "Preserve supplier creation/list behavior from previous slices."
+    },
+    {
+      "id": "action.create-product",
+      "type": "action",
+      "name": "Create Product",
+      "requirements": [],
+      "existing": true,
+      "implementation_mode": "screen_internal",
+      "owned_by": "screen.product-catalog",
+      "expected_change": "Preserve existing create product behavior, including supplier_id selection."
+    },
+    {
+      "id": "action.edit-product",
+      "type": "action",
+      "name": "Edit Product",
+      "requirements": [
+        "REQ-013"
+      ],
+      "existing": true,
+      "implementation_mode": "screen_internal",
+      "owned_by": "screen.product-catalog",
+      "expected_change": "Preserve edit product behavior and ensure supplier contact display reflects the currently selected supplier after edit."
+    },
+    {
+      "id": "action.adjust-stock",
+      "type": "action",
+      "name": "Adjust Stock",
+      "requirements": [],
+      "existing": true,
+      "implementation_mode": "screen_internal",
+      "owned_by": "screen.product-catalog",
+      "expected_change": "Preserve existing Adjust Stock behavior."
+    },
+    {
+      "id": "action.create-supplier",
+      "type": "action",
+      "name": "Create Supplier",
+      "requirements": [],
+      "existing": true,
+      "implementation_mode": "screen_internal",
+      "owned_by": "widget.supplier-management",
+      "expected_change": "Preserve existing supplier create behavior."
+    },
+    {
+      "id": "component.product-service",
+      "type": "component",
+      "name": "Product Service",
+      "requirements": [
+        "REQ-013"
+      ],
+      "existing": true,
+      "expected_change": "Resolve related supplier_contact_email for product list responses while preserving supplier_id filtering and supplier_name resolution."
+    },
+    {
+      "id": "component.supplier-service",
+      "type": "component",
+      "name": "Supplier Service",
+      "requirements": [
+        "REQ-013"
+      ],
+      "existing": true,
+      "expected_change": "Provide related supplier contact_email for product display."
+    },
+    {
+      "id": "api.products",
+      "type": "api",
+      "name": "Products API",
+      "resource": "products",
+      "requirements": [
+        "REQ-013"
+      ],
+      "existing": true,
+      "expected_change": "Return enough data to display supplier contact email for listed products."
+    },
+    {
+      "id": "api.suppliers",
+      "type": "api",
+      "name": "Suppliers API",
+      "resource": "suppliers",
+      "requirements": [
+        "REQ-013"
+      ],
+      "existing": true,
+      "expected_change": "Preserve supplier list/create behavior and contact_email field."
+    },
+    {
+      "id": "data.product",
+      "type": "data_entity",
+      "name": "Product",
+      "existing": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sku",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "hardware",
+            "software",
+            "service"
+          ],
+          "required": true
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "stock_quantity",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "name": "supplier_id",
+          "type": "string",
+          "required": false,
+          "relationship": "data.supplier"
+        },
+        {
+          "name": "supplier_name",
+          "type": "string",
+          "required": false,
+          "derived": true,
+          "relationship": "data.supplier"
+        },
+        {
+          "name": "supplier_contact_email",
+          "type": "string",
+          "required": false,
+          "derived": true,
+          "relationship": "data.supplier",
+          "derivation": "Contact email resolved from supplier_id when supplier data is available"
+        }
+      ],
+      "requirements": [
+        "REQ-013"
+      ],
+      "expected_change": "Expose related supplier_contact_email for product list display while preserving supplier_id and supplier_name behavior."
+    },
+    {
+      "id": "data.supplier",
+      "type": "data_entity",
+      "name": "Supplier",
+      "existing": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "contact_email",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "requirements": [
+        "REQ-013"
+      ],
+      "expected_change": "Preserve existing Supplier schema and use contact_email for product display."
+    },
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON Mock",
+      "path": "backend/app/storage/products_json_mock.json",
+      "requirements": [
+        "REQ-013"
+      ],
+      "existing": true,
+      "expected_change": "Preserve product storage; tests may create runtime products with supplier_id values matching existing suppliers."
+    },
+    {
+      "id": "mock.suppliers-json",
+      "type": "mock",
+      "name": "Suppliers JSON Mock",
+      "path": "backend/app/storage/suppliers_json_mock.json",
+      "requirements": [
+        "REQ-013"
+      ],
+      "existing": true,
+      "expected_change": "Preserve schema-compatible supplier mock storage and contact_email values."
+    }
+  ]
+}

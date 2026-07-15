@@ -1,0 +1,34 @@
+{
+  "data_sources": [
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON",
+      "format": "json",
+      "status": "existing_or_extend",
+      "scheme_elements": [
+        "mock.products-json",
+        "data.product"
+      ],
+      "requirements": [
+        "REQ-013"
+      ],
+      "expected_change": "Preserve product records. If tests need products with suppliers, use supplier_id values that reference supplier records from the current supplier API/storage."
+    },
+    {
+      "id": "mock.suppliers-json",
+      "type": "mock",
+      "name": "Suppliers JSON",
+      "format": "json",
+      "status": "existing",
+      "scheme_elements": [
+        "mock.suppliers-json",
+        "data.supplier"
+      ],
+      "requirements": [
+        "REQ-013"
+      ],
+      "expected_change": "Use existing schema-compatible Supplier records and their contact_email field to populate product supplier contact display; do not change supplier schema."
+    }
+  ]
+}

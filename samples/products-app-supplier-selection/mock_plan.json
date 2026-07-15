@@ -1,0 +1,57 @@
+{
+  "mocks": [
+    {
+      "id": "mock.products-json",
+      "path": "backend/app/storage/products_json_mock.json",
+      "status": "existing_or_extend",
+      "records": [
+        {
+          "id": "product-1",
+          "name": "USB-C Docking Station",
+          "sku": "HW-DOCK-100",
+          "category": "hardware",
+          "price": 149.9,
+          "stock_quantity": 12,
+          "supplier_id": "supplier-1"
+        },
+        {
+          "id": "product-2",
+          "name": "Analytics Dashboard License",
+          "sku": "SW-DASH-200",
+          "category": "software",
+          "price": 39.0,
+          "stock_quantity": 0,
+          "supplier_id": "supplier-2"
+        }
+      ],
+      "notes": [
+        "Existing product storage may be extended with supplier_id. Existing stock and availability behavior must be preserved.",
+        "Product selection tests may create products dynamically; preexisting product records are optional."
+      ]
+    },
+    {
+      "id": "mock.suppliers-json",
+      "path": "backend/app/storage/suppliers_json_mock.json",
+      "status": "ensure_schema_compatible_records",
+      "records": [
+        {
+          "id": "supplier-001",
+          "name": "Acme Components",
+          "contact_email": "ops@acme-components.example"
+        },
+        {
+          "id": "supplier-002",
+          "name": "Northwind Software",
+          "contact_email": "partners@northwind-software.example"
+        }
+      ],
+      "notes": [
+        "These records are fallback demo suppliers for the product create/edit select only when the existing supplier mock storage does not already contain at least two valid Supplier records.",
+        "Before editing this file, inspect backend/app/models/supplier.py and preserve the current Supplier schema exactly.",
+        "Do not replace existing valid supplier records only to change demo names.",
+        "Do not introduce email or phone fields when the current Supplier model expects contact_email.",
+        "Browser/e2e should use supplier names/ids that are actually present in the rendered select, either from existing storage or from these fallback records."
+      ]
+    }
+  ]
+}

@@ -76,6 +76,35 @@ Do not implement create/update as individual FastAPI query parameters when the g
 - Avoid defining both `/notes` and `/api/notes` unless the requirement explicitly needs compatibility aliases.
 - Search can be either `GET /api/notes?q=...` or `GET /api/notes/search?q=...`, but tests and UI must use the same endpoint.
 
+
+## Multi-resource provider composition
+
+When an API endpoint returns or filters a primary resource using data from a related resource, keep the primary service/provider as the owner of primary storage and compose the related service through dependency injection.
+
+Preferred FastAPI shape:
+
+```python
+def get_related_service() -> RelatedService:
+    return RelatedService()
+
+def get_primary_service(
+    related_service: RelatedService = Depends(get_related_service),
+) -> PrimaryService:
+    return PrimaryService(related_service=related_service)
+
+@router.get("")
+def list_primary(
+    service: PrimaryService = Depends(get_primary_service),
+    related_id: str | None = None,
+):
+    return service.list_primary(related_id=related_id)
+```
+
+Do not fix a related-resource lookup by creating a fresh `PrimaryService(related_service=...)` inside the route handler while dropping `Depends(get_primary_service)`. That loses the primary storage override used by tests and often leaks default mock data into API responses.
+
+If a display field needs external data, populate it in the service/API mapping. Do not make it a Pydantic `computed_field` unless it can be computed only from fields already present on that same model.
+- If an endpoint response must expose a new field, relationship id, or related display value through a Pydantic model/DTO/schema, the owning model/DTO/schema file is part of the implementation contract and should be in the file plan. Do not sneak response model changes into an unplanned file just because API/service/tests need the field.
+
 ## Mutable-state dependency testability
 
 Use the catalog method `backend.pytest.api.mutable-state` for feature API tests. In this FastAPI kit, that method means `get_<entity>_service()` + `Depends(...)` in the API module and `app.dependency_overrides[...]` in pytest fixtures. For future non-FastAPI stacks, add a separate method or example rather than weakening this contract.
