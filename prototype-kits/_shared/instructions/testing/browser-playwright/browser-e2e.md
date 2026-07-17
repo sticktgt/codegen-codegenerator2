@@ -1,6 +1,6 @@
 # Browser/e2e rules
 
-Read `instructions/testing/test-method-catalog.md` first and use the matching Playwright method. For a single CRUD/list/search screen, the default is `web.e2e.playwright.crud-list-search-flow` plus the form, item-action, filtered-list, async-state, and count methods where relevant.
+Read `instructions/testing/test-method-catalog.md` and `instructions/testing/browser-playwright-methods.md` first and use the matching Playwright method. For a single CRUD/list/search screen, the default is `web.e2e.playwright.crud-list-search-flow` plus the form, item-action, filtered-list, async-state, and count methods where relevant.
 
 Browser/e2e tests validate user-visible behavior through the browser. They should be small, stable, and scoped to UI contracts.
 
@@ -33,6 +33,50 @@ Browser/e2e tests validate user-visible behavior through the browser. They shoul
 - Avoid global negative assertions against old text in persistent lists unless the test fully controls the dataset and scopes the old row uniquely.
 - For filtered-list behavior, assert a runtime-owned matching row is visible. Use an explicit empty-state assertion only if the UI provides one, or a count assertion only after the dataset is controlled and state has settled. Do not change the list loading UI merely to make a premature count assertion pass; fix the test wait unless the requirement specifies loading behavior.
 
+
+
+## Mutable related-value filter flows
+
+When a browser/e2e flow creates a record and later edits a field or relationship that affects a search/filter dimension, every later filter assertion must use the record's current post-edit value/id for that dimension. Alternatively, perform the filter assertion before the edit step, or create a separate runtime-owned record dedicated to the filter assertion.
+
+Do not filter by an initial related value, a first fixture option, or a pre-edit label while expecting a record that was edited to a different related value to remain visible. Keep runtime values in test-function scope, update them immediately after the UI edit succeeds, and base later API/UI filter assertions on those updated variables.
+
+If a flow verifies both old and new related values, make the expectation explicit: the edited record should disappear from the old-value filter and appear under the new-value filter. Do not mix these two assertions accidentally in the same step.
+
+### Runtime expectation ledger
+
+For mutable browser/e2e flows, keep a small runtime expectation ledger in the test body. This is not a framework helper; it can be a few parent-scope variables or a plain object. The ledger should store only values that later steps depend on for row lookup, display assertions, search, or filters.
+
+Use one canonical current value per dimension:
+
+```javascript
+const runtimeRecord = {
+  primaryText: runtimePrimaryText,
+  relatedId: initialRelatedId,
+  relatedFilterValue: initialRelatedFilterValue,
+};
+```
+
+When an edit changes a relationship or a field that affects a later filter/search assertion, update the same ledger variables immediately after the edit succeeds and before any later filter step:
+
+```javascript
+await test.step('edit a related value', async () => {
+  runtimeRecord.relatedId = editedRelatedId;
+  runtimeRecord.relatedFilterValue = editedRelatedFilterValue;
+  await form.getByTestId('field.<entity>-related-id').selectOption(runtimeRecord.relatedId);
+  await form.getByTestId('action.edit-<entity>').click();
+  await expect(row.getByTestId('field.<entity>-related-value-display')).toHaveText(runtimeRecord.relatedFilterValue);
+});
+
+await test.step('filter by the current related value', async () => {
+  await filter.getByTestId('field.<entity>-related-filter').selectOption(runtimeRecord.relatedFilterValue);
+  await expect(page.getByTestId('item.<entity>').filter({ hasText: runtimeRecord.primaryText })).toBeVisible();
+});
+```
+
+Do not recompute later filter values from the first available fixture, the first `<option>`, or an earlier variable after the record has been edited. Before every filter/search step that expects the mutable record to remain visible, perform a quick mental check: “Does this filter value equal the record's current displayed/API value after the latest edit?” If not, update the ledger or move the filter check before the edit.
+
+If the flow intentionally validates the old filter value after an edit, assert the opposite behavior explicitly: the edited record should not be visible under the old value and should be visible under the new current value.
 
 ## Submit success signals
 

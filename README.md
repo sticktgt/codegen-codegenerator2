@@ -154,6 +154,7 @@ samples/notes-app-slice-004-note-count/
 samples/tasks-app/
 samples/customers-app/
 samples/products-app/
+samples/products-app-supplier-domain-filter/
 samples/requests-app/
 ```
 
@@ -282,15 +283,27 @@ prototype-kits/
     instructions/
       core/
       architecture-addons/
+        stack/
+        frontend/
+        backend/
+        storage/
       frontend/react/
       backend/python-fastapi/
       storage/json/
       testing/
+        core/
+        ui-static/
+        backend-pytest/
+        browser-playwright/
+        examples/
     prompts/
       core/
       stack/react-python-browser/
       storage/json/
-      testing/pytest-playwright/
+      testing/
+        core/
+        backend-pytest/
+        browser-playwright/
     skills/
   react-python-json-browser/
     kit.yaml
@@ -419,7 +432,9 @@ prototype-kits/_shared/prompts/
   core/<phase>.md
   stack/react-python-browser/<phase>.md
   storage/json/<phase>.md
-  testing/pytest-playwright/<phase>.md
+  testing/core/<phase>.md
+  testing/backend-pytest/<phase>.md
+  testing/browser-playwright/<phase>.md
 ```
 
 `manifest.yaml` содержит:
@@ -428,7 +443,7 @@ prototype-kits/_shared/prompts/
 - `path_base` — база разрешения путей (`repository`, `kit` или `manifest`);
 - `phases` — mapping фаз `plan`, `plan-review`, `implementation`, `repair` в упорядоченные списки prompt-модулей.
 
-Порядок модулей значим: `prompt_sync.py` объединяет их сверху вниз, без смыслового выбора по scenario. Для текущего kit-а каждая фаза получает общий модуль, модуль React/Python browser stack, модуль local JSON storage и модуль pytest/Playwright. При замене только хранилища можно сохранить остальные модули и заменить `storage/json` на модуль другого storage-профиля.
+Порядок модулей значим: `prompt_sync.py` объединяет их сверху вниз, без смыслового выбора по scenario. Для текущего kit-а каждая фаза получает общий модуль, модуль React/Python browser stack, модуль local JSON storage, общий testing-модуль, backend-pytest модуль и browser-playwright модуль. При замене только хранилища можно сохранить остальные модули и заменить `storage/json` на модуль другого storage-профиля. При замене backend-test или browser-test технологии заменяется соответствующий testing prompt-модуль, а не весь prompt фазы.
 
 При `--sync-prompts` pipeline собирает по одному run snapshot на фазу:
 
@@ -497,7 +512,7 @@ prototype-kits/_shared/instructions/
 workspace/instructions/
   core/
     architecture.md
-    architecture-addons/react-python-json-browser.md
+    architecture-addons/stack/react-python-json-browser.md
     coding.md
     planning.md
     file-boundaries.md
@@ -507,20 +522,36 @@ workspace/instructions/
     implementation-guidance.md
   frontend/
     react.md
-    patterns/react-json-crud.md
+    patterns/react-crud-list-search.md
+    patterns/react-stable-anchors.md
   backend/
     python-fastapi.md
     storage-json.md
-    patterns/fastapi-json-crud.md
+    patterns/fastapi-api-crud.md
+    patterns/related-response-enrichment.md
+    patterns/json-storage-crud.md
   testing/
     validation-planning.md
-    backend-pytest.md
-    browser-e2e.md
     test-method-catalog.md
+    ui-static-methods.md
+    backend-pytest.md
+    backend-pytest-methods.md
+    browser-e2e.md
+    browser-playwright-methods.md
     examples/
 ```
 
-`core/architecture.md` содержит постоянные правила. Stack/kit-specific часть вынесена в `core/architecture-addons/react-python-json-browser.md`. Prompt каждой фазы читает только нужные ей модули; небольшой обязательный baseline указан в `opencode.json`.
+`core/architecture.md` содержит постоянные правила. Stack/kit-specific обзор вынесен в `core/architecture-addons/stack/react-python-json-browser.md`; слой UI, backend и storage описывается отдельными add-on файлами внутри `core/architecture-addons/frontend/`, `backend/` и `storage/`. Это позволяет при замене одного слоя менять соответствующий shared-модуль и manifest, не переписывая всю архитектурную инструкцию. Prompt каждой фазы читает только нужные ей модули; небольшой обязательный baseline указан в `opencode.json`.
+
+Testing-инструкции также разделены по технологиям:
+
+- `testing/test-method-catalog.md` — общий индекс допустимых method ids;
+- `testing/ui-static-methods.md` — pipeline-native UI static checks;
+- `testing/backend-pytest.md` и `testing/backend-pytest-methods.md` — backend pytest/FastAPI-specific правила;
+- `testing/browser-e2e.md` и `testing/browser-playwright-methods.md` — Playwright/browser-specific правила;
+- `testing/examples/` — нейтральные примеры backend и browser validation.
+
+Если меняется только backend-test technology, заменяется backend-pytest модуль. Если меняется browser/e2e technology, заменяется browser-playwright модуль. Общий catalog остается индексом method ids и не должен содержать подробные правила конкретного тестового инструмента.
 
 `test-method-catalog.md` задает допустимые test method ids, например:
 

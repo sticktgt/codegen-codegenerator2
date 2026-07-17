@@ -64,5 +64,5 @@ The report must list changed files, related scheme elements, related requirement
 - Shared runtime modules live under `prototype-kits/_shared/agents/`, `_shared/instructions/`, `_shared/examples/`, and `_shared/skills/`.
 - The active phase prompt lists the canonical materialized modules under `instructions/core/`, `instructions/frontend/`, `instructions/backend/`, and `instructions/testing/`.
 - Read the phase-required modules first, then load only patterns relevant to the approved file and validation plans.
-- `instructions/core/architecture.md` contains invariant rules; `instructions/core/architecture-addons/react-python-json-browser.md` contains this kit's stack-specific placement rules.
+- `instructions/core/architecture.md` contains invariant rules; `instructions/core/architecture-addons/stack/react-python-json-browser.md` gives the stack overview; layer-specific placement rules live under `instructions/core/architecture-addons/frontend/`, `backend/`, and `storage/`.
 - The optional `prototype-crud-flow` skill is only a compact checklist. It does not replace canonical instructions, the approved file plan, or required phase reports.

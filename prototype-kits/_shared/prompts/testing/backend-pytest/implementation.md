@@ -1,0 +1,9 @@
+# Backend pytest implementation additions
+
+Additional reads and rules:
+- If any approved file-plan item creates or modifies `backend/tests/*.py`, read `instructions/testing/backend-pytest-methods.md` and `instructions/testing/backend-pytest.md` in this implementation phase before completing the test edit. Do not rely only on prompt reminders when changing backend pytest files.
+- Backend pytest edits have a mandatory final gate before `implementation_report.json`: re-read every modified `backend/tests/*.py` file and perform an import/symbol pass over the whole file. Every model, service, provider, helper, and standard-library symbol used in fixtures or test function bodies must be imported at module scope, defined in the file, provided by a fixture, or be a Python builtin. If tests instantiate model objects directly, add explicit module-level imports for those models.
+- Apply the gate to the final file content, not to the planned diff: scan new tests, edited fixtures, helper functions, and existing tests that may now reference newly added imports or providers.
+- Do not modify `backend/tests/test_smoke.py` for feature-specific API behavior. If smoke is present in file_plan.json as anything other than read-only/rerun coverage, report the conflict in `implementation_report.json` rather than extending smoke.
+- Keep the HTTP request payload contract consistent across backend API, frontend calls, and backend pytest. For generated browser-backed CRUD in this kit, create/update endpoints should accept JSON request bodies and tests/frontend should use JSON for create/update; list/search/filter should use query parameters. Query parameter names must match exactly across API, frontend, and pytest.
+- When values can contain `+`, spaces, `&`, `%`, or `#`, use encoded query params (`params=...` in pytest/TestClient, `URLSearchParams` or equivalent in frontend) instead of raw URL concatenation.

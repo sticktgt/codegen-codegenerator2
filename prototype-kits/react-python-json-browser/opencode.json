@@ -2,7 +2,10 @@
   "$schema": "https://opencode.ai/config.json",
   "instructions": [
     "instructions/core/architecture.md",
-    "instructions/core/architecture-addons/react-python-json-browser.md",
+    "instructions/core/architecture-addons/stack/react-python-json-browser.md",
+    "instructions/core/architecture-addons/frontend/react-browser.md",
+    "instructions/core/architecture-addons/backend/python-fastapi.md",
+    "instructions/core/architecture-addons/storage/json.md",
     "instructions/core/coding.md",
     "instructions/core/file-boundaries.md",
     "instructions/core/traceability.md",

@@ -1,8 +1,11 @@
 # React / Python browser stack review additions
 
 Additional reads and rules:
-- instructions/core/architecture-addons/react-python-json-browser.md
-- Does the plan follow the layer rules in `instructions/core/architecture.md` and `instructions/core/architecture-addons/react-python-json-browser.md` without relying on Python to repair artifact types or create/modify decisions?
+- instructions/core/architecture-addons/stack/react-python-json-browser.md
+- instructions/core/architecture-addons/frontend/react-browser.md
+- instructions/core/architecture-addons/backend/python-fastapi.md
+- instructions/core/architecture-addons/storage/json.md
+- Does the plan follow the layer rules in `instructions/core/architecture.md` and `instructions/core/architecture-addons/stack/react-python-json-browser.md` and the layer add-ons under `instructions/core/architecture-addons/{frontend,backend,storage}/` without relying on Python to repair artifact types or create/modify decisions?
 - Are existing skeleton/integration files planned as modify/read rather than create?
 - Are any backend/frontend layers missing?
 - For scheme actions without a dedicated file, including existing actions from `scheme_model.json`, does `implementation_mode: "screen_internal"` name an `owning_artifact` and is the owning artifact allowed by the file plan?

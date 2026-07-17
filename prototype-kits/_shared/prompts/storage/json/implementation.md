@@ -2,7 +2,9 @@
 
 Additional reads and rules:
 - instructions/backend/storage-json.md
-- instructions/backend/patterns/fastapi-json-crud.md
+- instructions/backend/patterns/fastapi-api-crud.md
+- instructions/backend/patterns/related-response-enrichment.md
+- instructions/backend/patterns/json-storage-crud.md
 - instructions/testing/examples/backend-json-storage-pytest.md, when backend storage isolation is relevant
 
 - For mock/storage JSON files, use exactly the storage path listed in file_plan.json. Do not create alias, fallback, seed, or shortened-name storage files such as `<resource>_mock.json` when the plan lists `<resource>_json_mock.json`. Update service defaults, API code, tests, and UI assumptions to use the planned path or test-owned temp paths.

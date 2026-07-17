@@ -9,7 +9,7 @@ When asked to plan a slice:
 - Read `prototype/input/scheme_model.json` as scheme context from requirements/design. A listed scheme element is not proof that its implementation file already exists, and the scheme may be partial in incremental runs.
 - Read `prototype/input/baseline_context/*.json` when present. These files are read-only semantic context from the previous successful run, not file-change instructions.
 - Read `prototype/input/architecture-contract.yaml` and follow the artifact types, path placement rules, validation capabilities, validation intent rules, and UI conventions declared there.
-- Read `instructions/core/architecture.md` and `instructions/core/architecture-addons/react-python-json-browser.md` as the human-readable architecture rules for layers, owned artifacts, and skeleton/integration files.
+- Read `instructions/core/architecture.md` and `instructions/core/architecture-addons/stack/react-python-json-browser.md` and the layer add-ons under `instructions/core/architecture-addons/{frontend,backend,storage}/` as the human-readable architecture rules for layers, owned artifacts, and skeleton/integration files.
 - Do not edit production source files.
 - Produce `prototype/output/plan_proposal.json`.
 - Produce `prototype/output/validation_plan_proposal.json` when validation checks or tests are part of the plan.

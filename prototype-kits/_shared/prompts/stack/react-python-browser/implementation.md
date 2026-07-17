@@ -1,7 +1,10 @@
 # React / Python browser stack implementation additions
 
 Additional reads and rules:
-- instructions/core/architecture-addons/react-python-json-browser.md
+- instructions/core/architecture-addons/stack/react-python-json-browser.md
+- instructions/core/architecture-addons/frontend/react-browser.md
+- instructions/core/architecture-addons/backend/python-fastapi.md
+- instructions/core/architecture-addons/storage/json.md
 - If the approved file plan contains both frontend and backend CRUD artifacts and the native skill tool lists `prototype-crud-flow`, load that skill once as an optional checklist. Continue normally when it is unavailable; canonical files under `instructions/` remain authoritative.
 - Treat common baseline/config files as read-only unless explicitly writable in file_plan.json: backend/tests/test_smoke.py, backend/requirements.txt, frontend/package.json, frontend/playwright.config.js, frontend/vite.config.js.
 - For frontend diagnostics, do not use `node --check` on `.jsx` files or Playwright spec files. JSX and Playwright ESM syntax are handled by the configured Vite/Playwright commands, not by raw Node syntax checking.
@@ -25,6 +28,7 @@ Multi-resource incremental implementation:
 - When an existing endpoint already depends on a primary-resource provider such as `Depends(get_primary_service)`, preserve that provider as the owner of primary storage/state. If a related service is added, compose it through the primary provider or pass it into the already-injected primary service; do not create a fresh `PrimaryService(related_service=...)` inside the handler and thereby drop test/runtime overrides for primary storage.
 - For display fields derived from another resource, do not use a Pydantic `computed_field` if the value requires external service/storage lookup. Use an optional response/model field populated by the service or API mapper. Keep `computed_field` for values derived only from fields already on the same model.
 - If the same resource response model is returned by list/detail/create/update endpoints and validation checks the derived or related field after more than one operation, populate the field through a shared enrichment/serialization helper or update every returning service/API method in the approved file plan. Do not populate only the list response when detail/update/create responses are part of the validated UI/API flow.
+- If search/filter/sort behavior depends on a related or derived response field, enrich/compose the response field before applying that predicate, unless the storage/backend layer has an explicit equivalent query mechanism. Do not filter raw primary records by a field that only exists after response enrichment.
 - If you need to add an optional response/model field so the API can serialize a display or relationship value, confirm the model/DTO/schema file is present in the approved file plan before editing it. If it is not planned, do not silently change it; either satisfy the requirement through already planned mapping/schema files or record the mismatch in `implementation_report.json` instead of broadening scope.
 - Put action anchors on the actual clickable controls that implement the action. Do not add a parent wrapper with `data-prototype-id="action.<x>"` only to satisfy a static check while the real button in a child widget has the same anchor.
 - When embedding a child widget, the parent screen should pass callbacks/data and render the widget; the child widget should contain its own form/action anchors.

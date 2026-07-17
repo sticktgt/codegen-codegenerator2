@@ -2,7 +2,9 @@
 
 Additional reads and rules:
 - instructions/backend/storage-json.md
-- instructions/backend/patterns/fastapi-json-crud.md
+- instructions/backend/patterns/fastapi-api-crud.md
+- instructions/backend/patterns/related-response-enrichment.md
+- instructions/backend/patterns/json-storage-crud.md
 
 - Is `backend/app/storage/__init__.py`, if used, classified as `backend_storage` rather than `backend_integration`?
 - Review service dependencies for linked resources. If a primary resource service is expected to return a related resource display field, but the plan does not provide a way to inject or share the related service/storage in API tests, warn strongly or block when backend validation depends on temp storage isolation.

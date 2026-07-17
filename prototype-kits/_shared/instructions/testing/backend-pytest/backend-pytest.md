@@ -1,6 +1,8 @@
 # Backend pytest rules
 
-Read `instructions/testing/test-method-catalog.md` first and use the matching catalog method. For this kit, most backend feature API tests should use `backend.pytest.api.mutable-state`.
+Read `instructions/testing/test-method-catalog.md` and `instructions/testing/backend-pytest-methods.md` before creating or modifying backend pytest tests, then use the matching catalog method. For this kit, most backend feature API tests should use `backend.pytest.api.mutable-state`.
+
+When a phase modifies `backend/tests/*.py`, treat this file as the technology-specific contract for that edit. Apply the import/symbol gate below to the final test file before reporting completion.
 
 Backend tests should validate public backend behavior without changing implementation files at test time.
 
@@ -18,6 +20,21 @@ Backend tests should validate public backend behavior without changing implement
 - Match the generated API request contract: use `json=` for create/update endpoints that accept Pydantic request bodies, and use query params only for list/search/filter endpoints. Backend pytest and frontend calls must use the same request shape and the same query parameter names. If the API parameter is named `search`, tests must pass `params={"search": value}`; if it is named `q`, every layer must use `q`. Use `params=...` rather than raw query-string concatenation so values with `+`, spaces, `&`, `%`, or `#` are encoded correctly.
 - Match framework behavior: FastAPI/Pydantic request schema errors usually return 422; use 400 only for explicit domain validation implemented after schema parsing.
 - Keep baseline smoke checks separate. Do not add feature CRUD/search assertions to `backend/tests/test_smoke.py`; create or extend the planned feature test file instead.
+## Import and symbol discipline
+
+Backend pytest files must be self-contained Python modules: every class, model, service, provider, helper, and standard-library symbol used by a test body or fixture must be imported or defined in that test file before the test is handed to validation.
+
+Before finishing a backend pytest edit, re-read the final version of the whole modified test file and do a symbol pass over it:
+
+- List every direct bare symbol used in fixtures and tests, including symbols used inside function bodies, not only top-level code. Examples include `TestClient`, `Path`, `Iterator`, `<Entity>`, `<RelatedEntity>`, `<ResourceService>`, `<RelatedService>`, `get_resource_service`, and `app`.
+- For each symbol, confirm it is defined in the file, imported at module scope, provided by pytest fixtures, or a Python builtin. Do not rely on imports that exist in implementation files; tests need their own imports.
+- If a test constructs Pydantic/domain model objects directly, import those models explicitly from their owning module, for example `from app.models.resource import Resource`.
+- Prefer one module-level import per dependency over repeated local imports inside several test functions. Local imports are acceptable only to avoid an actual circular import and should be rare.
+- When extending an existing test file, keep existing imports and add missing imports narrowly. Do not rewrite the import block in a way that drops symbols used by existing tests.
+- If a validation failure reports `NameError` or `ImportError` in a backend test, scan the entire modified test file for the same missing-symbol class of issue before editing. Do not fix only the first failing test while leaving the next test to fail on the same missing import.
+
+If you run an implementation-phase diagnostic, keep it narrow. A Python syntax check can catch parse errors, but it will not catch symbols used only inside test functions. A focused pytest run for the modified backend test file is allowed only as a narrow phase-local diagnostic when it is cheap and directly relevant; the official validation still belongs to the pipeline.
+
 ## Multi-resource dependency overrides
 
 For API tests that cover relationships between resources, override every service provider involved in the request path.

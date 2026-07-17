@@ -2,22 +2,30 @@ version: 1
 path_base: repository
 phases:
   plan:
-    - prototype-kits/_shared/prompts/core/plan.md
-    - prototype-kits/_shared/prompts/stack/react-python-browser/plan.md
-    - prototype-kits/_shared/prompts/storage/json/plan.md
-    - prototype-kits/_shared/prompts/testing/pytest-playwright/plan.md
+  - prototype-kits/_shared/prompts/core/plan.md
+  - prototype-kits/_shared/prompts/stack/react-python-browser/plan.md
+  - prototype-kits/_shared/prompts/storage/json/plan.md
+  - prototype-kits/_shared/prompts/testing/core/plan.md
+  - prototype-kits/_shared/prompts/testing/backend-pytest/plan.md
+  - prototype-kits/_shared/prompts/testing/browser-playwright/plan.md
   plan-review:
-    - prototype-kits/_shared/prompts/core/plan-review.md
-    - prototype-kits/_shared/prompts/stack/react-python-browser/plan-review.md
-    - prototype-kits/_shared/prompts/storage/json/plan-review.md
-    - prototype-kits/_shared/prompts/testing/pytest-playwright/plan-review.md
+  - prototype-kits/_shared/prompts/core/plan-review.md
+  - prototype-kits/_shared/prompts/stack/react-python-browser/plan-review.md
+  - prototype-kits/_shared/prompts/storage/json/plan-review.md
+  - prototype-kits/_shared/prompts/testing/core/plan-review.md
+  - prototype-kits/_shared/prompts/testing/backend-pytest/plan-review.md
+  - prototype-kits/_shared/prompts/testing/browser-playwright/plan-review.md
   implementation:
-    - prototype-kits/_shared/prompts/core/implementation.md
-    - prototype-kits/_shared/prompts/stack/react-python-browser/implementation.md
-    - prototype-kits/_shared/prompts/storage/json/implementation.md
-    - prototype-kits/_shared/prompts/testing/pytest-playwright/implementation.md
+  - prototype-kits/_shared/prompts/core/implementation.md
+  - prototype-kits/_shared/prompts/stack/react-python-browser/implementation.md
+  - prototype-kits/_shared/prompts/storage/json/implementation.md
+  - prototype-kits/_shared/prompts/testing/core/implementation.md
+  - prototype-kits/_shared/prompts/testing/backend-pytest/implementation.md
+  - prototype-kits/_shared/prompts/testing/browser-playwright/implementation.md
   repair:
-    - prototype-kits/_shared/prompts/core/repair.md
-    - prototype-kits/_shared/prompts/stack/react-python-browser/repair.md
-    - prototype-kits/_shared/prompts/storage/json/repair.md
-    - prototype-kits/_shared/prompts/testing/pytest-playwright/repair.md
+  - prototype-kits/_shared/prompts/core/repair.md
+  - prototype-kits/_shared/prompts/stack/react-python-browser/repair.md
+  - prototype-kits/_shared/prompts/storage/json/repair.md
+  - prototype-kits/_shared/prompts/testing/core/repair.md
+  - prototype-kits/_shared/prompts/testing/backend-pytest/repair.md
+  - prototype-kits/_shared/prompts/testing/browser-playwright/repair.md

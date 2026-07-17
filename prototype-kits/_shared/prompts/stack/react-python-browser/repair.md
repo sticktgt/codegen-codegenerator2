@@ -1,13 +1,17 @@
 # React / Python browser stack repair additions
 
 Additional reads and rules:
-- instructions/core/architecture-addons/react-python-json-browser.md, if needed
+- instructions/core/architecture-addons/stack/react-python-json-browser.md
+- instructions/core/architecture-addons/frontend/react-browser.md
+- instructions/core/architecture-addons/backend/python-fastapi.md
+- instructions/core/architecture-addons/storage/json.md, if needed
 - If the failure spans both frontend and backend CRUD behavior and the native skill tool lists `prototype-crud-flow`, load that skill once as an optional checklist. Continue normally when it is unavailable; canonical files under `instructions/` remain authoritative.
 - Do not modify `frontend/package.json` merely to satisfy ad-hoc diagnostics such as raw Node ESM checks. Only change package/config files when the canonical validation failure genuinely requires it and file_plan.json allows it.
 - If backend pytest fails because frontend/backend/tests disagree on request shape or query parameter names, repair the API, frontend API calls, and backend pytest to one contract. For this kit, generated browser-backed CRUD create/update should use JSON request bodies with Pydantic request models; list/search/filter should use query params. Keep query parameter names exact across layers (`q` vs `search` mismatches are failures), and encode query values through `params`/`URLSearchParams` when values may contain `+`, spaces, `&`, `%`, or `#`.
 Multi-resource repair guidance:
 - If a derived display field was generated as a read-only `computed_field` but must be populated from a related service, repair it to an explicit optional response/model field or service/API mapping. Do not remove existing same-model computed fields such as availability/status labels that do not need external lookup.
 - If validation shows a related/derived response field is present in one endpoint but missing from another endpoint that returns the same resource, repair the shared enrichment/serialization path first. Prefer a helper used by list/detail/create/update over one-off fixes that only move the failure to the next endpoint.
+- If a related/derived-field filter returns no matching records even though the enriched response shows matching values, check predicate order. Repair toward enrichment/composition before filtering, or an equivalent storage/backend query path; do not patch the browser test around a stale or empty API result.
 - If UI static reports a missing child-widget action anchor, first put the anchor on the actual clickable control in the widget that owns the action. Avoid duplicate wrapper anchors in the parent screen. If the approved file plan incorrectly requires the parent file to carry the child action and the artifact otherwise works, a parent wrapper is a last-resort workaround; record it explicitly in `repair_report.json` as a file-plan/static-check workaround, not as the intended UI pattern.
 - Keep repairs within the approved file plan and avoid broad rewrites of existing primary-resource behavior when only a related-resource linkage or test seam is failing.
 - If boundary validation reports an unexpected model/DTO/schema file that was edited only to serialize a new response/display/relationship field, do not treat this as a coding workaround. The plan likely missed the model owner. Repair by reverting the unplanned file when possible, or record the file-plan gap explicitly if the field cannot be serialized without it; future plans must include the model/DTO/schema owner.

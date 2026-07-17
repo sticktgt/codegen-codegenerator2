@@ -12,6 +12,9 @@ from app.api.resources import get_resource_service
 from app.main import app
 from app.services.resource_service import ResourceService
 
+# If a test constructs model objects directly, import the model explicitly as well.
+# Example: from app.models.resource import Resource
+
 
 @pytest.fixture
 def client(tmp_path) -> Iterator[TestClient]:
@@ -52,6 +55,8 @@ def test_update_resource(client: TestClient):
     assert response.status_code == 200
     assert response.json()["primary"] == "A updated"
 ```
+
+Before completing a generated backend test file, scan the full file for direct symbols used in fixtures and test bodies. Every service, provider, app object, model class, typing helper, and standard-library class must be imported or defined in the test module. This includes model classes used only inside individual test functions.
 
 Legacy fallback is allowed only when the approved file plan cannot change an existing API module to use FastAPI `Depends(...)`: patch the exact route-module object that endpoints call.
 

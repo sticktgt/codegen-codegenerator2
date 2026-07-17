@@ -9,15 +9,18 @@ Principle:
 
 Relevant files for this kit:
 - `instructions/testing/test-method-catalog.md` — canonical testing methods for backend, UI static, and browser/e2e validation.
-- `instructions/backend/patterns/fastapi-json-crud.md` — FastAPI + JSON-backed CRUD implementation pattern.
-- `instructions/frontend/patterns/react-json-crud.md` — React CRUD/list/search screen implementation pattern.
+- `instructions/backend/patterns/fastapi-api-crud.md` — FastAPI API/service/route CRUD pattern.
+- `instructions/backend/patterns/related-response-enrichment.md` — related/derived response-field enrichment pattern.
+- `instructions/backend/patterns/json-storage-crud.md` — JSON storage persistence pattern.
+- `instructions/frontend/patterns/react-crud-list-search.md` — React CRUD/list/search screen pattern.
+- `instructions/frontend/patterns/react-stable-anchors.md` — React stable UI anchor pattern.
 - `instructions/testing/backend-pytest.md` — pytest-specific implementation rules.
 - `instructions/testing/browser-e2e.md` — Playwright-specific implementation rules.
 
 Selection guidance:
 - If the file plan includes backend API/service/model/storage artifacts, read the backend CRUD pattern.
 - If the file plan includes React screen/widget/action artifacts, read the frontend CRUD pattern.
-- If the validation plan includes backend pytest files, read the test method catalog and backend pytest rules.
+- If the file plan creates or modifies `backend/tests/*.py`, read the test method catalog and backend pytest rules before reporting implementation complete; the backend pytest import/symbol gate is mandatory for those files.
 - If the validation plan includes browser/e2e files, read the test method catalog and browser/e2e rules.
 
 Optional OpenCode skill:
