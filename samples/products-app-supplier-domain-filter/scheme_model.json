@@ -1,0 +1,244 @@
+{
+  "scheme_id": "SCH-PRODUCTS-004E",
+  "title": "Product catalog prototype scheme - supplier email domain display and filter",
+  "elements": [
+    {
+      "id": "screen.product-catalog",
+      "type": "screen",
+      "name": "Product Catalog",
+      "requirements": [
+        "REQ-014"
+      ],
+      "existing": true,
+      "expected_change": "Display related supplier email domain in product rows and support supplier-domain filtering without replacing the screen."
+    },
+    {
+      "id": "widget.product-search-filter",
+      "type": "widget",
+      "name": "Product Search, Category, Availability, Supplier and Domain Filter",
+      "requirements": [
+        "REQ-014"
+      ],
+      "existing": true,
+      "expected_change": "Preserve existing filters and add a supplier email domain filter control."
+    },
+    {
+      "id": "widget.supplier-management",
+      "type": "widget",
+      "name": "Supplier Management",
+      "requirements": [],
+      "existing": true,
+      "expected_change": "Preserve supplier creation/list behavior from previous slices without changing supplier schema."
+    },
+    {
+      "id": "action.create-product",
+      "type": "action",
+      "name": "Create Product",
+      "requirements": [
+        "REQ-014"
+      ],
+      "existing": true,
+      "implementation_mode": "screen_internal",
+      "owned_by": "screen.product-catalog",
+      "expected_change": "Preserve create product behavior and ensure created response/list refresh exposes the supplier email domain when a supplier is selected."
+    },
+    {
+      "id": "action.edit-product",
+      "type": "action",
+      "name": "Edit Product",
+      "requirements": [
+        "REQ-014"
+      ],
+      "existing": true,
+      "implementation_mode": "screen_internal",
+      "owned_by": "screen.product-catalog",
+      "expected_change": "Preserve edit product behavior and ensure supplier domain display/filter reflects the currently selected supplier after edit."
+    },
+    {
+      "id": "action.adjust-stock",
+      "type": "action",
+      "name": "Adjust Stock",
+      "requirements": [],
+      "existing": true,
+      "implementation_mode": "screen_internal",
+      "owned_by": "screen.product-catalog",
+      "expected_change": "Preserve existing Adjust Stock behavior."
+    },
+    {
+      "id": "action.create-supplier",
+      "type": "action",
+      "name": "Create Supplier",
+      "requirements": [],
+      "existing": true,
+      "implementation_mode": "screen_internal",
+      "owned_by": "widget.supplier-management",
+      "expected_change": "Preserve existing supplier create behavior and contact_email input behavior."
+    },
+    {
+      "id": "component.product-service",
+      "type": "component",
+      "name": "Product Service",
+      "requirements": [
+        "REQ-014"
+      ],
+      "existing": true,
+      "expected_change": "Resolve derived supplier email domain for Product responses and apply supplier-domain filtering while preserving supplier_id, supplier_name, and supplier_contact_email behavior."
+    },
+    {
+      "id": "component.supplier-service",
+      "type": "component",
+      "name": "Supplier Service",
+      "requirements": [
+        "REQ-014"
+      ],
+      "existing": true,
+      "expected_change": "Provide assigned supplier contact_email values used for domain derivation."
+    },
+    {
+      "id": "api.products",
+      "type": "api",
+      "name": "Products API",
+      "resource": "products",
+      "requirements": [
+        "REQ-014"
+      ],
+      "existing": true,
+      "expected_change": "Return enough data to display supplier email domain and filter products by supplier email domain."
+    },
+    {
+      "id": "api.suppliers",
+      "type": "api",
+      "name": "Suppliers API",
+      "resource": "suppliers",
+      "requirements": [
+        "REQ-014"
+      ],
+      "existing": true,
+      "expected_change": "Preserve supplier list/create behavior and contact_email field."
+    },
+    {
+      "id": "data.product",
+      "type": "data_entity",
+      "name": "Product",
+      "existing": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sku",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "hardware",
+            "software",
+            "service"
+          ],
+          "required": true
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "stock_quantity",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "name": "supplier_id",
+          "type": "string",
+          "required": false,
+          "relationship": "data.supplier"
+        },
+        {
+          "name": "supplier_name",
+          "type": "string",
+          "required": false,
+          "derived": true,
+          "relationship": "data.supplier"
+        },
+        {
+          "name": "supplier_contact_email",
+          "type": "string",
+          "required": false,
+          "derived": true,
+          "relationship": "data.supplier"
+        },
+        {
+          "name": "supplier_contact_domain",
+          "type": "string",
+          "required": false,
+          "derived": true,
+          "relationship": "data.supplier",
+          "derivation": "Lowercase domain derived from the assigned supplier contact_email after the '@' separator"
+        }
+      ],
+      "requirements": [
+        "REQ-014"
+      ],
+      "expected_change": "Expose related supplier_contact_domain or equivalent derived field for product responses while preserving supplier_id, supplier_name, and supplier_contact_email behavior."
+    },
+    {
+      "id": "data.supplier",
+      "type": "data_entity",
+      "name": "Supplier",
+      "existing": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "contact_email",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "requirements": [
+        "REQ-014"
+      ],
+      "expected_change": "Preserve existing Supplier schema and use contact_email for product domain derivation."
+    },
+    {
+      "id": "mock.products-json",
+      "type": "mock",
+      "name": "Products JSON Mock",
+      "path": "backend/app/storage/products_json_mock.json",
+      "requirements": [
+        "REQ-014"
+      ],
+      "existing": true,
+      "expected_change": "Preserve product storage; tests may create runtime products assigned to supplier ids from current supplier storage/API."
+    },
+    {
+      "id": "mock.suppliers-json",
+      "type": "mock",
+      "name": "Suppliers JSON Mock",
+      "path": "backend/app/storage/suppliers_json_mock.json",
+      "requirements": [
+        "REQ-014"
+      ],
+      "existing": true,
+      "expected_change": "Preserve supplier storage schema and contact_email values used for domain derivation; no supplier schema migration is required."
+    }
+  ]
+}

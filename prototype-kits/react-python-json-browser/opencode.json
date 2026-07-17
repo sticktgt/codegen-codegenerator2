@@ -1,19 +1,21 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "instructions": [
-    "instructions/architecture.md",
-    "instructions/coding-rules.md",
-    "instructions/traceability-rules.md",
-    "instructions/planning-rules.md",
-    "instructions/validation-rules.md",
-    "instructions/forbidden-changes.md",
-    "instructions/repair-rules.md",
+    "instructions/core/architecture.md",
+    "instructions/core/architecture-addons/react-python-json-browser.md",
+    "instructions/core/coding.md",
+    "instructions/core/file-boundaries.md",
+    "instructions/core/traceability.md",
     "agents/prototype-builder.md"
   ],
   "permission": {
     "edit": "allow",
     "bash": "deny",
-    "webfetch": "deny"
+    "webfetch": "deny",
+    "skill": {
+      "*": "deny",
+      "prototype-crud-flow": "allow"
+    }
   },
   "watcher": {
     "ignore": [

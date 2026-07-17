@@ -49,3 +49,20 @@ prototype/output/implementation_report.json
 ```
 
 The report must list changed files, related scheme elements, related requirements, and any deviations from the active file plan.
+
+## Composable phase prompts
+
+- `prompts/manifest.yaml` declares the ordered prompt modules for `plan`, `plan-review`, `implementation`, and `repair`.
+- Shared modules live under `prototype-kits/_shared/prompts/` and are grouped into core, stack, storage, and testing responsibilities.
+- The pipeline composes one run snapshot per phase before OpenCode starts. Do not choose prompt modules from scenario semantics in Python code.
+- Storage-specific changes should normally replace only the storage prompt module; React/Python and testing modules remain reusable when their contracts do not change.
+- Monolithic `prompts/*_prompt.md` files are not supported by this kit; update `prompts/manifest.yaml` and shared modules instead.
+
+## Composable runtime context
+
+- `runtime/manifest.yaml` declares shared agents, instructions, examples, and skills that the pipeline materializes into the run workspace.
+- Shared runtime modules live under `prototype-kits/_shared/agents/`, `_shared/instructions/`, `_shared/examples/`, and `_shared/skills/`.
+- The active phase prompt lists the canonical materialized modules under `instructions/core/`, `instructions/frontend/`, `instructions/backend/`, and `instructions/testing/`.
+- Read the phase-required modules first, then load only patterns relevant to the approved file and validation plans.
+- `instructions/core/architecture.md` contains invariant rules; `instructions/core/architecture-addons/react-python-json-browser.md` contains this kit's stack-specific placement rules.
+- The optional `prototype-crud-flow` skill is only a compact checklist. It does not replace canonical instructions, the approved file plan, or required phase reports.

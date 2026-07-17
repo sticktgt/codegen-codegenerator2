@@ -1,0 +1,16 @@
+{
+  "requirements": [
+    {
+      "id": "REQ-014",
+      "text": "В списке продуктов отображается домен контактного email поставщика и доступен фильтр продуктов по этому домену.",
+      "priority": "should",
+      "status": "approved",
+      "notes": [
+        "This slice starts from a successful supplier contact display baseline: Product already has optional supplier_id, supplier_name and supplier_contact_email response/display behavior.",
+        "Do not change the Supplier schema. Derive the domain from the existing Supplier.contact_email value when it is present.",
+        "The displayed domain must come from the supplier currently assigned to the product, using real supplier ids/contact_email values from the current API or runtime test data.",
+        "If the product supplier is changed during edit, the displayed supplier email domain and supplier-domain filter behavior must reflect the newly selected supplier."
+      ]
+    }
+  ]
+}

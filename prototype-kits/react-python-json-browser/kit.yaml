@@ -1,18 +1,18 @@
 id: react-python-json-browser
 title: React + Python + JSON Prototype Kit with Browser UI Validation
-version: 0.2-browser
+version: 0.5-composable-runtime
 architecture_profile: simple-crud-app
 stack:
   frontend: React / JavaScript
   backend: Python / FastAPI-compatible structure
   storage: local JSON files
 supports:
-- list_view
-- form_editor
-- text_search
-- local_crud
-- local_json_storage
-- mock_data
+  - list_view
+  - form_editor
+  - text_search
+  - local_crud
+  - local_json_storage
+  - mock_data
 limits:
   max_entities: 5
   max_screens: 8
@@ -22,8 +22,10 @@ rules:
   prefer_one_owned_file_per_scheme_element: true
   allow_integration_files: true
   require_traceability_report: true
-  - browser_e2e_ui_validation
+  browser_e2e_ui_validation: true
 validation:
   task_runner: taskfile
   default_task: validate
 architecture_contract: architecture-contract.yaml
+prompt_manifest: prompts/manifest.yaml
+runtime_manifest: runtime/manifest.yaml

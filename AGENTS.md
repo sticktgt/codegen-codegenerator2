@@ -80,32 +80,35 @@ validation runner: Taskfile
 Основные файлы kit-а:
 
 ```text
-prototype-kits/react-python-json-browser/
-  kit.yaml
-  generation-rules.yaml
-  architecture-contract.yaml
-  Taskfile.yml
-  opencode.json
-  AGENTS.md
-  agents/
-  prompts/
-  instructions/
-  examples/
-  template/
+prototype-kits/
+  _shared/
+    agents/
+    examples/
+    instructions/
+    prompts/
+    skills/
+  react-python-json-browser/
+    kit.yaml
+    generation-rules.yaml
+    architecture-contract.yaml
+    Taskfile.yml
+    opencode.json
+    AGENTS.md
+    prompts/manifest.yaml
+    runtime/manifest.yaml
+    template/
 ```
 
 Назначение основных файлов:
 
-- `kit.yaml` — метаданные kit-а, stack, capabilities, limits, default validation task.
+- `kit.yaml` — метаданные kit-а, stack, capabilities, limits, default validation task, путь `prompt_manifest` и путь `runtime_manifest`.
 - `generation-rules.yaml` — naming и mapping scheme elements в пути файлов.
 - `architecture-contract.yaml` — machine-readable contract: artifact types, allowed roots, operations, validation capabilities, workspace isolation.
 - `Taskfile.yml` — команды `install`, `smoke`, `test`, `build`, `frontend-behavior`, `validate`, `export`.
 - `opencode.json` — конфигурация OpenCode внутри workspace.
-- `prompts/` — prompt-шаблоны фаз `plan`, `plan-review`, `implementation`, `repair`.
-- `instructions/` — правила архитектуры, планирования, реализации, repair, validation, traceability.
-- `instructions/patterns/` — повторно используемые backend/frontend implementation patterns.
-- `instructions/testing/` — backend pytest, browser/e2e, test method catalog и примеры.
-- `template/` — минимальный skeleton workspace.
+- `prompts/manifest.yaml` — декларативный состав prompt-модулей для фаз `plan`, `plan-review`, `implementation`, `repair`.
+- `runtime/manifest.yaml` — декларативный состав agents, instructions, examples и skills, материализуемых в workspace.
+- `template/` — только минимальный greenfield skeleton workspace; runtime-контекст накладывается отдельно и при incremental run.
 
 `architecture-contract.yaml` и `generation-rules.yaml` описывают архитектурные уровни и допустимые операции. Бизнес-логика приходит из `samples/<scenario>/requirements.json`, `scheme_model.json`, `run_input.json` и `implementation_slice.json`.
 
@@ -121,7 +124,7 @@ runs/<run>/workspace/
 
 ```text
 prototype/input/...      входы текущего run-а
-instructions/...         markdown-инструкции kit-а, синхронизированные в workspace
+instructions/...         markdown-инструкции, материализованные из shared-модулей активного kit-а
 prompts/...              prompt snapshots для диагностики
 frontend/...             frontend prototype files
 backend/...              backend prototype files
@@ -194,9 +197,9 @@ python3 tools/prepare_run_from_scenario.py \
 
 `run_pipeline.py --clean` сбрасывает runtime outputs/logs/usage/dist и workspace к baseline.
 
-`--sync-prompts` обновляет run prompt snapshots из активного kit-а.
+`--sync-prompts` собирает run prompt snapshots из модулей, перечисленных активным kit prompt manifest. Python не выбирает модули по содержанию scenario: порядок и состав полностью задаются manifest-ом. Монолитные legacy prompt-файлы не поддерживаются.
 
-`--kit` синхронизирует в run architecture contract, generation rules, kit metadata и instructions.
+`--kit` синхронизирует в run architecture contract, generation rules, kit metadata и materialized runtime context.
 
 ### 3. OpenCode plan
 
@@ -588,7 +591,7 @@ task validate
 
 - Не добавлять demo-specific правила для одного sample, если проблема не сформулирована как общий kit-level pattern.
 - Не превращать Python checks в replacement для LLM planning.
-- Не менять generated app skeleton без отражения в kit rules/prompts.
+- Не менять generated app skeleton без отражения в kit rules/prompts/runtime manifests.
 - Не отправлять diff/patch files пользователю без прямой просьбы.
 - После каждого patch handoff указывать список измененных файлов.
 - Для artifacts давать ссылку на zip и коротко указывать проверки.

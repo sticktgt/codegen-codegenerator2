@@ -4,6 +4,7 @@ import argparse
 import shutil
 from pathlib import Path
 from common import copytree_clean, run_cmd
+from kit_runtime import copy_kit_runtime
 
 INPUT_FILES = [
     "scheme_model.json",
@@ -36,24 +37,15 @@ def main() -> None:
 
     copytree_clean(args.kit / "template", workspace)
 
-    # Copy kit-level OpenCode files into workspace root.
-    for name in ["AGENTS.md", "opencode.json", "Taskfile.yml"]:
-        src = args.kit / name
-        if src.exists():
-            shutil.copy2(src, workspace / name)
-    for folder in ["agents", "instructions", "examples", "prompts"]:
-        src = args.kit / folder
-        if src.exists():
-            dst = workspace / folder
-            if dst.exists():
-                shutil.rmtree(dst)
-            shutil.copytree(src, dst)
+    # Runtime instructions, prompts, agents, and skills are overlaid separately
+    # from template/. This keeps greenfield and incremental workspaces aligned.
+    copy_kit_runtime(args.kit, workspace)
 
     # Keep a compatibility mirror for markdown instructions under
     # prototype/input. The prompt-facing canonical path is still
     # workspace-root instructions/; this mirror prevents noisy failed reads
     # from models that probe prototype/input/instructions.
-    instructions_src = args.kit / "instructions"
+    instructions_src = workspace / "instructions"
     if instructions_src.exists():
         instructions_input_dst = workspace / "prototype" / "input" / "instructions"
         if instructions_input_dst.exists():

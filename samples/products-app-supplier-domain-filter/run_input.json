@@ -1,0 +1,93 @@
+{
+  "run_input_version": 1,
+  "source": "requirements_stage",
+  "slice": {
+    "slice_id": "SLICE-004E",
+    "title": "Display and filter by supplier email domain",
+    "requirements": [
+      "REQ-014"
+    ],
+    "goal": "Extend the supplier-contact-enabled products-app prototype with a derived supplier email domain display and a supplier-domain product filter.",
+    "change_type": "extend_existing_behavior",
+    "selected_existing_elements": [
+      "screen.product-catalog",
+      "widget.product-search-filter",
+      "widget.supplier-management",
+      "action.create-product",
+      "action.edit-product",
+      "action.adjust-stock",
+      "action.create-supplier",
+      "component.product-service",
+      "component.supplier-service",
+      "api.products",
+      "api.suppliers",
+      "data.product",
+      "data.supplier",
+      "mock.products-json",
+      "mock.suppliers-json"
+    ],
+    "preserve_existing_behavior_by_default": true,
+    "acceptance_criteria": [
+      "Existing product create, edit, list, search, category filter, availability filter, supplier filter, supplier name display, supplier contact email display, Adjust Stock action, supplier creation, and product supplier selection behavior remains working.",
+      "Product list displays a supplier email domain for products assigned to a supplier whose contact_email contains an email domain.",
+      "Products without an assigned supplier or without a valid supplier contact_email display an empty fallback such as an em dash for supplier email domain.",
+      "Product search/filter widget includes a supplier email domain filter populated from supplier contact_email domains available in the current suppliers API or from product response data.",
+      "Filtering by supplier email domain shows only products assigned to suppliers with matching contact_email domains.",
+      "Clear/reset returns the supplier email domain filter to All Domains or an equivalent default and reloads the full product list.",
+      "When editing a product to select a supplier with a different contact_email domain, the product row updates to show the new domain and the product appears under the new domain filter.",
+      "Backend /api/products responses include supplier_contact_domain, supplier_email_domain, or an equivalent derived response field for list, detail/get, create, and update responses when those responses return Product data.",
+      "Backend /api/products list endpoint supports an optional supplier email domain filter parameter, using a documented parameter name such as supplier_contact_domain or supplier_email_domain.",
+      "Backend tests for the derived domain and domain filter use explicit shared test data/storage or provider composition so product and supplier lookup read the same related data.",
+      "Browser/e2e uses supplier ids, contact_email values, and expected domains returned by the current suppliers API or runtime-created data; it does not rely on hard-coded demo supplier labels, ids, or option order."
+    ],
+    "constraints": [
+      "Use --from-run with a successful products-app-supplier-contact-display run as baseline, for example runs/run-017-products-supplier-contact-display-v109.",
+      "Treat this as extend_existing_behavior: no new screens, applications, resources, or external integrations are required.",
+      "Do not create a second product catalog screen or separate product application.",
+      "Preserve supplier management widget, product supplier selection, supplier name display, supplier contact email display, and supplier filter from previous slices.",
+      "Do not change the Supplier model/schema. Use the existing contact_email field and derive only the domain part after '@'.",
+      "Do not rewrite existing valid supplier mock records only to change demo names, ids, or emails.",
+      "Do not modify backend/app/main.py or backend/app/storage/__init__.py for this slice unless existing validation proves wiring is missing.",
+      "If a product response field is needed for supplier email domain, include the owning Product model/DTO/schema file in the file plan rather than modifying it unexpectedly.",
+      "Related supplier domain resolution should use explicit dependency seams, provider composition, shared test storage, or a shared enrichment helper so backend tests and runtime endpoints do not read different mock files for related resources.",
+      "If the same Product response model is returned by list/detail/create/update, populate the derived supplier domain consistently in every operation used by the requirement or validation flow.",
+      "Extend existing backend/tests/test_products_api.py and frontend/e2e/products-crud-list-search.spec.js; do not create a new product_catalog.spec.js or duplicate product catalog browser spec.",
+      "No product delete, supplier delete, supplier schema expansion, procurement workflows, authentication, database migrations, or new dependencies.",
+      "Continue using local JSON mock storage."
+    ],
+    "non_goals": [
+      "Adding new Supplier fields such as country, phone, status, rating, website, or region.",
+      "Changing supplier creation/edit behavior beyond preserving previous supplier resource behavior.",
+      "Changing existing supplier-name or supplier-contact-email display semantics.",
+      "Adding procurement, purchase order, contract, warehouse, supplier scoring, external integration, or email validation logic.",
+      "Adding validation that every supplier contact_email is valid; display fallback is acceptable for missing or malformed related email data in this prototype."
+    ],
+    "validation_expectations": [
+      "Extend backend product API tests to verify the derived supplier email domain is returned for list and detail/get responses for products assigned to suppliers with contact_email values.",
+      "Extend backend product API tests to verify create and update responses include the derived supplier email domain when those responses return Product data.",
+      "Extend backend product API tests to verify supplier email domain filtering returns products for matching supplier domains and excludes products assigned to suppliers with different domains.",
+      "Extend existing product e2e to verify the product row displays the supplier email domain for the current assigned supplier using a stable display anchor rather than a table-cell index.",
+      "Extend existing product e2e to verify filtering by supplier email domain and clearing the filter preserves existing product/supplier behavior.",
+      "Rerun existing supplier filter/name display/contact email display/product regression behavior."
+    ]
+  },
+  "requirements": [
+    {
+      "id": "REQ-014",
+      "text": "В списке продуктов отображается домен контактного email поставщика и доступен фильтр продуктов по этому домену.",
+      "priority": "should",
+      "status": "approved",
+      "notes": [
+        "This slice starts from a successful supplier contact display baseline: Product already has optional supplier_id, supplier_name and supplier_contact_email response/display behavior.",
+        "Do not change the Supplier schema. Derive the domain from the existing Supplier.contact_email value when it is present.",
+        "The displayed domain must come from the supplier currently assigned to the product, using real supplier ids/contact_email values from the current API or runtime test data.",
+        "If the product supplier is changed during edit, the displayed supplier email domain and supplier-domain filter behavior must reflect the newly selected supplier."
+      ]
+    }
+  ],
+  "scenario_notes": [
+    "This scenario intentionally checks a related derived display field plus a related-resource filter, not only a direct supplier field display.",
+    "It should reuse current supplier ids/contact_email values from the baseline/API and should not create a new resource or new screen.",
+    "It is intended to exercise planning consistency between file_plan reasons and validation_plan operations for list/detail/create/update plus filtered list behavior."
+  ]
+}

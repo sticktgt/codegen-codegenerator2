@@ -1,0 +1,56 @@
+{
+  "mocks": [
+    {
+      "id": "mock.suppliers-json",
+      "path": "backend/app/storage/suppliers_json_mock.json",
+      "status": "existing",
+      "records": [
+        {
+          "id": "supplier-domain-001",
+          "name": "Domain Alpha Components",
+          "contact_email": "ops@alpha-components.example"
+        },
+        {
+          "id": "supplier-domain-002",
+          "name": "Domain Beta Software",
+          "contact_email": "partners@beta-software.example"
+        }
+      ],
+      "notes": [
+        "These are example supplier records only; prefer current baseline/API records when available.",
+        "Supplier domain display and filtering should derive domains from contact_email of the actual supplier assigned to the product.",
+        "Do not introduce new supplier fields such as country, website, rating, or phone for this scenario."
+      ]
+    },
+    {
+      "id": "mock.products-json",
+      "path": "backend/app/storage/products_json_mock.json",
+      "status": "existing_or_extend",
+      "records": [
+        {
+          "id": "product-004e-1",
+          "name": "Runtime Domain Hardware",
+          "sku": "HW-DOMAIN-004E",
+          "category": "hardware",
+          "price": 219.9,
+          "stock_quantity": 12,
+          "supplier_id": "supplier-domain-001"
+        },
+        {
+          "id": "product-004e-2",
+          "name": "Runtime Domain Software",
+          "sku": "SW-DOMAIN-004E",
+          "category": "software",
+          "price": 89.0,
+          "stock_quantity": 5,
+          "supplier_id": "supplier-domain-002"
+        }
+      ],
+      "notes": [
+        "These records are examples only. Tests may instead create runtime products assigned to supplier ids from the current suppliers API.",
+        "Any product seed used for domain display/filtering must reference supplier ids that exist in current supplier storage/API.",
+        "Preserve existing product behavior from earlier slices."
+      ]
+    }
+  ]
+}

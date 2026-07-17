@@ -1,0 +1,37 @@
+version: 1
+path_base: repository
+runtime:
+  agents:
+    - source: prototype-kits/_shared/agents/prototype-builder.md
+      target: prototype-builder.md
+    - source: prototype-kits/_shared/agents/prototype-repair.md
+      target: prototype-repair.md
+    - source: prototype-kits/_shared/agents/prototype-reviewer.md
+      target: prototype-reviewer.md
+  instructions:
+    - source: prototype-kits/_shared/instructions/core
+      target: core
+    - source: prototype-kits/_shared/instructions/architecture-addons
+      target: core/architecture-addons
+    - source: prototype-kits/_shared/instructions/frontend/react
+      target: frontend
+    - source: prototype-kits/_shared/instructions/backend/python-fastapi
+      target: backend
+    - source: prototype-kits/_shared/instructions/storage/json
+      target: backend
+    - source: prototype-kits/_shared/instructions/testing/shared
+      target: testing
+    - source: prototype-kits/_shared/instructions/testing/backend-pytest
+      target: testing
+    - source: prototype-kits/_shared/instructions/testing/browser-e2e
+      target: testing
+    - source: prototype-kits/_shared/instructions/testing/examples
+      target: testing/examples
+  examples:
+    - source: prototype-kits/_shared/examples/simple-crud
+      target: simple-crud
+    - source: prototype-kits/_shared/examples/search-filter
+      target: search-filter
+  opencode:
+    - source: prototype-kits/_shared/skills/prototype-crud-flow
+      target: skills/prototype-crud-flow

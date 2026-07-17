@@ -174,14 +174,16 @@ def write_simple_report(run: Path, summary: dict[str, Any]) -> None:
         lines.append("")
         lines.append(f"Sync requested: `{prompt_sync.get('sync_requested')}`")
         lines.append("")
-        lines.append("| Phase | Status | Managed | Action | Prompt file |")
-        lines.append("|---|---:|---:|---:|---|")
+        lines.append("| Phase | Status | Managed | Action | Sources | Manifest | Prompt file |")
+        lines.append("|---|---:|---:|---:|---:|---|---|")
         for item in prompt_sync.get("prompts", []):
             if item.get("prompt_file") is None:
                 continue
+            manifest = item.get("composition_manifest") or "manifest not resolved"
             lines.append(
                 f"| {item.get('phase')} | {item.get('status')} | {item.get('managed_snapshot')} | "
-                f"{item.get('action')} | `{item.get('prompt_file')}` |"
+                f"{item.get('action')} | {len(item.get('kit_sources') or [])} | `{manifest}` | "
+                f"`{item.get('prompt_file')}` |"
             )
         if prompt_sync.get("warnings"):
             lines.append("")

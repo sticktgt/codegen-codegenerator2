@@ -10,6 +10,18 @@ SYNCED_KIT_INPUTS = [
     "prototype/input/kit.yaml",
     "prototype/input/generation-rules.yaml",
     "prototype/input/architecture-contract.yaml",
+    "prototype/input/instructions",
+]
+
+SYNCED_KIT_RUNTIME = [
+    "AGENTS.md",
+    "opencode.json",
+    "Taskfile.yml",
+    "agents",
+    "instructions",
+    "examples",
+    "prompts",
+    ".opencode",
 ]
 
 PLAN_INPUTS = [
@@ -37,13 +49,6 @@ def commit_workspace_files(run: Path, logger: PipelineLogger, rel_paths: list[st
         subprocess.run(["git", "commit", "-m", message], cwd=workspace)
 
 
-def _synced_instruction_paths(workspace: Path) -> list[str]:
-    instructions = workspace / "prototype" / "input" / "instructions"
-    if not instructions.exists():
-        return []
-    return [str(path.relative_to(workspace)) for path in sorted(instructions.rglob("*")) if path.is_file()]
-
-
 def commit_synced_kit_inputs(run: Path, logger: PipelineLogger) -> None:
     """Make kit-level input sync part of the clean baseline.
 
@@ -56,7 +61,7 @@ def commit_synced_kit_inputs(run: Path, logger: PipelineLogger) -> None:
     commit_workspace_files(
         run=run,
         logger=logger,
-        rel_paths=SYNCED_KIT_INPUTS + _synced_instruction_paths(workspace),
+        rel_paths=SYNCED_KIT_INPUTS + SYNCED_KIT_RUNTIME,
         message="synced kit input artifacts",
         log_message="Committing synced kit input artifacts to the workspace baseline",
     )

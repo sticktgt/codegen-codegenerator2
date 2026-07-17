@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from common import read_yaml, write_json
+from kit_runtime import copy_kit_runtime
 
 
 KIT_INPUT_FILES = [
@@ -67,7 +68,7 @@ def _infer_kit_dir(root: Path, run: Path, explicit_kit: Path | None) -> Path | N
     # Most spike runs use a single kit. Use it if unambiguous.
     kits_root = root / "prototype-kits"
     if kits_root.exists():
-        existing = [path for path in kits_root.iterdir() if path.is_dir()]
+        existing = [path for path in kits_root.iterdir() if path.is_dir() and not path.name.startswith("_")]
         if len(existing) == 1:
             candidates.append(existing[0])
 
@@ -104,14 +105,13 @@ def sync_run_inputs(run: Path, *, root: Path, kit: Path | None = None) -> dict[s
             else:
                 warnings.append({"code": "kit_input_file_missing", "path": str(src)})
 
-        # Keep markdown instructions in the workspace root as the canonical
-        # prompt-facing location. Also mirror them under prototype/input for
-        # compatibility with models that still probe that path; both copies are
-        # committed as baseline metadata, not generated implementation changes.
+        # Refresh kit-owned runtime context independently from template/. This
+        # includes modular instructions and optional project-local OpenCode skills.
+        # Also keep the instruction compatibility mirror under prototype/input.
         if workspace.exists():
-            instructions_src = kit_dir / "instructions"
-            if _copytree_clean_if_exists(instructions_src, workspace / "instructions"):
-                actions.append("sync_instructions")
+            for copied in copy_kit_runtime(kit_dir, workspace):
+                actions.append(f"sync_runtime_{copied}")
+            instructions_src = workspace / "instructions"
             if _copytree_clean_if_exists(instructions_src, workspace_input / "instructions"):
                 actions.append("sync_prototype_input_instructions")
 

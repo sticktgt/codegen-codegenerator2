@@ -94,7 +94,7 @@ architecture-profiles/simple-crud-app/profile.yaml
 prototype-kits/react-python-json-browser/
 ```
 
-Kit содержит template workspace, machine-readable contracts, human-readable instructions, prompts и validation commands.
+Kit содержит template workspace, machine-readable contracts, manifest-ы композиции runtime-контекста и validation commands. Общие и стековые модули prompts, instructions, agents, examples и skills находятся в `prototype-kits/_shared/` и повторно используются kit-ами. Активный kit выбирает нужные модули декларативными manifest-ами; Python не выбирает модули по смыслу scenario.
 
 ### `prototype_pipeline/`
 
@@ -207,13 +207,36 @@ runs/<run>/
 ```text
 backend/
 frontend/
-instructions/
-prompts/
 prototype/input/
 prototype/output/
+instructions/
+agents/
+examples/
+.opencode/skills/
+prompts/manifest.yaml
+runtime/manifest.yaml
+AGENTS.md
+Taskfile.yml
+opencode.json
+kit.yaml
+generation-rules.yaml
+architecture-contract.yaml
 ```
 
-`prototype/input/` содержит входы текущего run и утвержденные планы. `prototype/output/` содержит phase reports и результаты проверок.
+Назначение основных частей:
+
+- `backend/` — Python/FastAPI-compatible backend.
+- `frontend/` — React prototype.
+- `prototype/input/` — canonical и compatibility inputs, promoted `file_plan.json`, `validation_plan.json`, kit contracts и baseline context.
+- `prototype/output/` — agent phase outputs и промежуточные отчеты внутри workspace.
+- `instructions/` — materialized markdown runtime instructions из `runtime/manifest.yaml`.
+- `agents/` — materialized OpenCode agent descriptions.
+- `examples/` — materialized pattern examples.
+- `.opencode/skills/` — optional OpenCode skills.
+- `prompts/manifest.yaml` и `runtime/manifest.yaml` — kit manifests, доступные агенту как часть runtime context.
+- `AGENTS.md`, `Taskfile.yml`, `opencode.json`, `kit.yaml`, `generation-rules.yaml`, `architecture-contract.yaml` — kit/runtime contracts.
+
+При подготовке run workspace коммитится как baseline. Semantic generated changes должны появляться только после implementation/repair и только в allowed files из promoted file plan.
 
 ## Активный kit: `react-python-json-browser`
 
@@ -252,18 +275,33 @@ validation runner: Taskfile
 ### Структура kit-а
 
 ```text
-prototype-kits/react-python-json-browser/
-  kit.yaml
-  generation-rules.yaml
-  architecture-contract.yaml
-  Taskfile.yml
-  opencode.json
-  AGENTS.md
-  agents/
-  instructions/
-  prompts/
-  examples/
-  template/
+prototype-kits/
+  _shared/
+    agents/
+    examples/
+    instructions/
+      core/
+      architecture-addons/
+      frontend/react/
+      backend/python-fastapi/
+      storage/json/
+      testing/
+    prompts/
+      core/
+      stack/react-python-browser/
+      storage/json/
+      testing/pytest-playwright/
+    skills/
+  react-python-json-browser/
+    kit.yaml
+    generation-rules.yaml
+    architecture-contract.yaml
+    Taskfile.yml
+    opencode.json
+    AGENTS.md
+    prompts/manifest.yaml
+    runtime/manifest.yaml
+    template/
 ```
 
 ### `kit.yaml`
@@ -275,11 +313,21 @@ prototype-kits/react-python-json-browser/
 - supported capabilities;
 - limits;
 - default validation task;
-- ссылка на `architecture-contract.yaml`.
+- ссылка на `architecture-contract.yaml`;
+- `prompt_manifest` — относительный путь к manifest композиции prompt-ов.
+- `runtime_manifest` — относительный путь к manifest materialization для agents, instructions, examples и skills.
 
 ### `generation-rules.yaml`
 
-Правила naming и mapping scheme elements → files.
+Правила naming и mapping scheme elements → files. Это kit-specific файл: он описывает текущую структуру React/FastAPI/JSON prototype, а не универсальную схему для всех будущих стеков.
+
+Основные секции:
+
+- `name`, `version` — идентификация набора правил.
+- `naming` — соглашения по преобразованию имен: PascalCase для экранов/компонентов/actions, snake_case для backend modules и storage files.
+- `scheme_to_file_rules[]` — правила преобразования scheme element type в путь, artifact type и operation policy.
+- `integration_files` — существующие skeleton/integration файлы, которые можно модифицировать только по плану.
+- `forbidden_paths` — пути, которые generated implementation не должен создавать или менять.
 
 Основные mapping rules:
 
@@ -306,21 +354,22 @@ backend/app/storage/__init__.py
 
 ### `architecture-contract.yaml`
 
-Machine-readable contract для pipeline validation.
+Machine-readable contract для pipeline validation. Это kit-specific контракт для текущего React/FastAPI/JSON/browser runtime.
 
-Содержит:
+Основные секции:
 
-- principles;
-- run input contract;
-- planner output contract;
-- artifact types;
-- path policy;
-- validation capabilities;
-- validation policy;
-- UI validation rules;
-- workspace isolation rules.
+- `schema_version`, `id`, `version` — версия формата и идентификатор contract.
+- `principles` — высокоуровневые ограничения: generated code не должен выходить за разрешенные слои, runtime files не являются semantic implementation changes.
+- `run_input_contract` — какие входные файлы scenario/run считаются canonical input.
+- `planner_output` — обязательная структура `plan_proposal.json`, `validation_plan_proposal.json`, `design_delta`, file plan и validation checks.
+- `artifact_types` — допустимые artifact type, разрешенные operations и layer ownership.
+- `path_policy` — allowed roots, forbidden roots, runtime/baseline paths, generated vs non-semantic artifacts.
+- `validation_capabilities` — какие проверки поддерживает kit: backend pytest, build, ui_static, Playwright frontend behavior.
+- `validation_policy` — как связывать validation checks с executable files, non-file checks и validation intent.
+- `ui_validation` — контракт `data-prototype-id`, screen/widget/action anchors и правила static UI checks.
+- `workspace_isolation` — workspace-root discipline и запрет на semantic changes вне workspace.
 
-Этот файл используется formal plan validation и boundary checks.
+Этот файл используется formal plan validation, boundary checks, UI static checks и отчетностью. Он не заменяет markdown-инструкции, а задает машинно проверяемые ограничения для pipeline.
 
 ### `Taskfile.yml`
 
@@ -360,55 +409,118 @@ agents/prototype-reviewer.md
 agents/prototype-repair.md
 ```
 
-### `prompts/`
+### Prompt-модули и `prompts/manifest.yaml`
 
-Prompt-шаблоны фаз:
+Полные prompt-файлы больше не хранятся внутри kit-а как четыре монолитных источника. Kit задаёт декларативную композицию:
 
 ```text
-prompts/plan_prompt.md
-prompts/plan_review_prompt.md
-prompts/implementation_prompt.md
-prompts/repair_prompt.md
+prototype-kits/react-python-json-browser/prompts/manifest.yaml
+prototype-kits/_shared/prompts/
+  core/<phase>.md
+  stack/react-python-browser/<phase>.md
+  storage/json/<phase>.md
+  testing/pytest-playwright/<phase>.md
 ```
 
-Pipeline может синхронизировать их в run prompt snapshots при `--sync-prompts`.
+`manifest.yaml` содержит:
+
+- `version` — версия формата manifest;
+- `path_base` — база разрешения путей (`repository`, `kit` или `manifest`);
+- `phases` — mapping фаз `plan`, `plan-review`, `implementation`, `repair` в упорядоченные списки prompt-модулей.
+
+Порядок модулей значим: `prompt_sync.py` объединяет их сверху вниз, без смыслового выбора по scenario. Для текущего kit-а каждая фаза получает общий модуль, модуль React/Python browser stack, модуль local JSON storage и модуль pytest/Playwright. При замене только хранилища можно сохранить остальные модули и заменить `storage/json` на модуль другого storage-профиля.
+
+При `--sync-prompts` pipeline собирает по одному run snapshot на фазу:
+
+```text
+opencode_plan_prompt.txt
+opencode_plan_review_prompt.txt
+opencode_implementation_prompt.txt
+opencode_repair_prompt.txt
+```
+
+Если `prompts/manifest.yaml` отсутствует или ссылается на отсутствующие модули, prompt sync возвращает предупреждение/ошибку синхронизации. Обратная совместимость с монолитными `prompts/*_prompt.md` не поддерживается.
+
+### Runtime manifest и materialized runtime context
+
+Файл:
+
+```text
+prototype-kits/react-python-json-browser/runtime/manifest.yaml
+```
+
+задает, какие shared-модули нужно материализовать в workspace перед запуском OpenCode. Он не анализирует scenario и не выбирает модули динамически: состав runtime-контекста полностью задан kit-ом.
+
+Структура:
+
+- `version` — версия формата manifest.
+- `path_base` — база разрешения `source` путей: сейчас используется `repository`.
+- `runtime.agents[]` — пары `source`/`target`, копируемые в `workspace/agents/`.
+- `runtime.instructions[]` — пары `source`/`target`, копируемые в `workspace/instructions/`.
+- `runtime.examples[]` — пары `source`/`target`, копируемые в `workspace/examples/`.
+- `runtime.opencode[]` — пары `source`/`target`, копируемые в `workspace/.opencode/`; сейчас используется для skills.
+
+Пример элемента:
+
+```yaml
+- source: prototype-kits/_shared/instructions/frontend/react
+  target: frontend
+```
+
+означает: скопировать shared-модуль React-инструкций в `workspace/instructions/frontend/`.
+
+После materialization workspace содержит runtime-копии:
+
+```text
+workspace/agents/
+workspace/instructions/
+workspace/examples/
+workspace/.opencode/skills/
+workspace/runtime/manifest.yaml
+```
+
+Эти файлы являются runtime context и baseline. Они не должны попадать в semantic generated changes.
 
 ### `instructions/`
 
-Human-readable правила kit-а:
+Human-readable правила разбиты по зонам ответственности и хранятся как shared-модули. Kit materializes выбранный набор в `workspace/instructions/` через `runtime/manifest.yaml`.
 
 ```text
-instructions/architecture.md
-instructions/planning-rules.md
-instructions/coding-rules.md
-instructions/validation-rules.md
-instructions/repair-rules.md
-instructions/forbidden-changes.md
-instructions/implementation-patterns.md
-instructions/pipeline-output.md
-instructions/traceability-rules.md
+prototype-kits/_shared/instructions/
+  core/
+  architecture-addons/
+  frontend/react/
+  backend/python-fastapi/
+  storage/json/
+  testing/
+
+workspace/instructions/
+  core/
+    architecture.md
+    architecture-addons/react-python-json-browser.md
+    coding.md
+    planning.md
+    file-boundaries.md
+    traceability.md
+    pipeline-output.md
+    repair.md
+    implementation-guidance.md
+  frontend/
+    react.md
+    patterns/react-json-crud.md
+  backend/
+    python-fastapi.md
+    storage-json.md
+    patterns/fastapi-json-crud.md
+  testing/
+    validation-planning.md
+    backend-pytest.md
+    browser-e2e.md
+    test-method-catalog.md
+    examples/
 ```
 
-### `instructions/patterns/`
-
-Reusable implementation patterns:
-
-```text
-instructions/patterns/backend-fastapi-json-crud.md
-instructions/patterns/frontend-react-json-crud.md
-```
-
-### `instructions/testing/`
-
-Testing contracts and examples:
-
-```text
-instructions/testing/backend-pytest.md
-instructions/testing/browser-e2e.md
-instructions/testing/test-method-catalog.md
-instructions/testing/examples/backend-json-storage-pytest.md
-instructions/testing/examples/browser-anchored-flow-playwright.md
-```
+`core/architecture.md` содержит постоянные правила. Stack/kit-specific часть вынесена в `core/architecture-addons/react-python-json-browser.md`. Prompt каждой фазы читает только нужные ей модули; небольшой обязательный baseline указан в `opencode.json`.
 
 `test-method-catalog.md` задает допустимые test method ids, например:
 
@@ -425,6 +537,16 @@ web.e2e.playwright.filtered-list-flow
 web.e2e.playwright.count-assertion
 ```
 
+### `.opencode/skills/`
+
+Runtime manifest materializes экспериментальный некритичный skill:
+
+```text
+.opencode/skills/prototype-crud-flow/SKILL.md
+```
+
+Он доступен через native OpenCode skill tool как компактный CRUD-checklist. Канонические `instructions/` остаются источником правил, поэтому отсутствие или неиспользование skill не ломает pipeline.
+
 ### `examples/`
 
 Короткие примеры patterns, не готовое приложение:
@@ -436,7 +558,7 @@ examples/search-filter/README.md
 
 ### `template/`
 
-`template/` — минимальный skeleton проекта прототипа. Он копируется в `runs/<run>/workspace` при greenfield-подготовке run-а.
+`template/` — минимальный skeleton проекта прототипа. Он копируется только при greenfield-подготовке run-а. Kit runtime (`AGENTS.md`, `opencode.json`, `Taskfile.yml`, kit prompt manifest и materialized modules из `runtime/manifest.yaml`) накладывается отдельно, поэтому обновляется также при incremental run поверх предыдущего workspace. Общие prompt-модули остаются repository-level источниками и собираются в run snapshots до запуска OpenCode; instructions/agents/examples/skills materialize в workspace.
 
 Состав skeleton-а:
 
@@ -482,6 +604,67 @@ template/
 - дать smoke test и `/health` endpoint для проверки, что baseline backend импортируется.
 
 Generated code добавляется поверх skeleton-а на этапе OpenCode implementation. В greenfield slice обычно создаются новые owned-файлы в `backend/app/api`, `backend/app/services`, `backend/app/models`, `backend/app/storage`, `backend/tests`, `frontend/src/screens`, `frontend/src/widgets`, `frontend/e2e`, а skeleton/integration files изменяются по file plan.
+
+## Scenario/run input files
+
+Каждый sample содержит набор входных файлов requirements-stage/result-stage. На практике canonical входом для нового pipeline является `run_input.json`; остальные файлы остаются compatibility/context views и копируются в `workspace/prototype/input/`.
+
+### `run_input.json`
+
+Canonical scenario input. Основные поля:
+
+- `run_input_version` — версия формата.
+- `source` — источник или имя sample/scenario.
+- `slice` — описание текущего implementation slice: `id`, `title`, `goal`, `change_type`, `selected_existing_elements`, `acceptance_criteria`, `constraints`, `non_goals`, `validation_expectations`.
+- `requirements[]` — требования текущего slice с `id`, текстом, acceptance criteria и связанными метаданными.
+- `scenario_notes[]` — дополнительные пояснения для pipeline/агента; не являются file plan.
+
+`run_input.json` описывает намерение и критерии приемки. Он не предписывает имена файлов, artifact types, policies или конкретные операции изменения кода.
+
+### `implementation_slice.json`
+
+Compatibility view для текущего pipeline. Основные поля:
+
+- `slice_id`, `title`, `goal`, `change_type`.
+- `requirements[]` — требования текущего slice.
+- `selected_existing_elements[]` — элементы схемы, выбранные requirements stage или analyst input как контекст.
+- `preserve_existing_behavior_by_default` — правило сохранения уже принятого поведения.
+- `acceptance_criteria[]`, `constraints[]`, `non_goals[]`, `validation_expectations[]`.
+
+Planner должен использовать этот файл как входной контекст, но не как готовый file plan.
+
+### `requirements.json`
+
+Список требований. Обычно содержит:
+
+- `requirements[]` — id, title/text, priority/type, acceptance criteria, notes/constraints.
+
+В новых сценариях `run_input.json` является более полным canonical input, но `requirements.json` сохраняется для совместимости и явного requirements context.
+
+### `scheme_model.json`
+
+Схема логических элементов прототипа. Основные поля:
+
+- `scheme_id`, `title`.
+- `elements[]` — элементы вроде `screen.*`, `widget.*`, `action.*`, `api.*`, `service.*`, `data.*`.
+
+Элементы могут содержать id, type, title/name, responsibilities, связанные requirements и связи с другими элементами. В incremental runs схема может быть неполной: отсутствие элемента в `scheme_model.json` не означает, что его нет в workspace или baseline traceability.
+
+### `data_sources.json`
+
+Описание источников данных для прототипа. Основные поля:
+
+- `data_sources[]` — логическое имя, тип, resource/entity, ожидаемый формат, seed/mock source или ограничения.
+
+Для текущего kit-а это обычно локальные JSON/mock источники.
+
+### `mock_plan.json`
+
+План mock data. Основные поля:
+
+- `mocks[]` — какие mock files/data sets нужны, какие entities и поля должны быть представлены, какие seed records ожидаются.
+
+Файл помогает агенту понять требуемую форму mock data, но не заменяет `generation-rules.yaml` и file plan.
 
 ## Samples подробно
 
@@ -641,7 +824,7 @@ tools/prepare_run_from_scenario.py
 tools/prepare_workspace.py
   → создает runs/<run>/workspace
   → копирует prototype-kits/react-python-json-browser/template/* в workspace
-  → копирует runtime kit files: AGENTS.md, Taskfile.yml, opencode.json, agents/, instructions/, prompts/, examples/
+  → копирует runtime kit files: AGENTS.md, Taskfile.yml, opencode.json, prompts/manifest.yaml и materialized agents/, instructions/, .opencode/skills/, examples/ из runtime/manifest.yaml
   → копирует kit.yaml, generation-rules.yaml, architecture-contract.yaml в workspace/prototype/input
   → копирует scenario files в workspace/prototype/input
   → инициализирует git repository внутри workspace
@@ -709,7 +892,7 @@ python3 tools/prepare_run_from_scenario.py \
 tools/prepare_workspace.py
   → копирует runs/<previous-successful-run>/workspace в runs/<new-run>/workspace
   → удаляет runtime outputs и transient directories
-  → overlay текущих kit runtime files, instructions и prompts
+  → overlay текущих kit runtime files, включая materialized instructions, skills, agents, examples и kit prompt manifest
   → заменяет prototype/input на input нового scenario
   → инициализирует новый git baseline commit
 ```
@@ -882,6 +1065,27 @@ runs/<run>/output/run_summary.json
 
 Полный pipeline summary: opencode results, usage, plan validation, boundary, validation, traceability, ui_static, diagnostics.
 
+Основные поля:
+
+- `run`, `workspace`, `kit` — идентификаторы запуска и путей.
+- `stage_status` или stage-specific sections — результат каждой стадии pipeline.
+- `opencode` / `phases` — результаты phase calls, статусы, usage и ссылки на логи.
+- `plan_validation`, `boundary`, `ui_static`, `validation`, `traceability`, `repair` — агрегаты соответствующих стадий.
+- `artifacts` — ссылки на diagnostics/report/export artifacts.
+
+```text
+runs/<run>/output/sync_run_inputs_result.json
+```
+
+Результат синхронизации kit/runtime/input файлов в workspace. Основные поля:
+
+- `run`, `workspace`, `kit` — пути запуска.
+- `actions[]` — выполненные действия, например `sync_kit.yaml`, `sync_generation-rules.yaml`, `sync_architecture-contract.yaml`, `sync_runtime_instructions`, `sync_runtime_.opencode`, `sync_runtime_runtime`, `sync_prototype_input_instructions`.
+- `warnings[]` — отсутствующие manifest/source files или другие проблемы materialization.
+- `runtime_manifest` — manifest, по которому материализован runtime context, если поле присутствует в текущей версии отчета.
+
+Пустой `warnings[]` означает, что kit contracts, runtime context и compatibility-копии input-инструкций синхронизированы без замечаний.
+
 ```text
 runs/<run>/output/run_report.md
 ```
@@ -889,22 +1093,74 @@ runs/<run>/output/run_report.md
 Markdown-отчет для человека.
 
 ```text
+runs/<run>/output/sync_prompt_files_result.json
+```
+
+Результат проверки и синхронизации prompt snapshots. Основные поля:
+
+- `run` — путь run-а;
+- `kit` — определенный активный kit;
+- `sync_requested` — был ли запрошен режим обновления snapshots;
+- `prompts[]` — результат по каждой фазе;
+- `warnings[]` — stale/missing/invalid manifest, external override и другие проблемы синхронизации.
+
+Элемент `prompts[]` содержит:
+
+- `phase` — `plan`, `plan-review`, `implementation` или `repair`;
+- `prompt_file` — run snapshot, передаваемый OpenCode;
+- `composition_manifest` — manifest, по которому собран prompt;
+- `kit_sources[]` — упорядоченный список исходных prompt-модулей;
+- `missing_sources[]` — отсутствующие модули;
+- `managed_snapshot` — может ли pipeline обновлять этот файл;
+- `action` — `composed_from_kit`, `none`, `check_only` или `not_synced`;
+- `status` — `synced`, `up_to_date`, `stale`, `external_override`, `kit_prompt_missing`, `kit_prompt_invalid` или `kit_not_found`;
+- `prompt_sha256`, `kit_source_sha256` — hashes snapshot и собранного источника.
+
+```text
 runs/<run>/output/code_traceability.json
 ```
 
-Связь requirements ↔ allowed files ↔ changed files ↔ validation checks.
+Связь requirements ↔ allowed files ↔ changed files ↔ validation checks. Основные поля: requirements coverage, changed-file mapping, validation check mapping, gaps, implemented-not-validated items.
 
 ```text
 runs/<run>/output/changed_files.json
 ```
 
-Boundary result и подробный список изменений.
+Boundary result и подробный список изменений. Основные поля:
+
+- `status` — passed/failed.
+- `semantic_changes` или grouped changed files — created/modified/deleted/renamed semantic files.
+- `unexpected_files`, `policy_violations`, `missing_required_files`, `missing_required_changes`.
+- `runtime_mutated_files`, `non_semantic_changes` — runtime/log/test artifacts, которые не должны считаться generated implementation.
 
 ```text
 runs/<run>/output/ui_static_check_result.json
 ```
 
-UI anchor checks: checked files, warnings, blockers.
+UI anchor checks: checked files, warnings, blockers. Основные поля:
+
+- `status` — passed/failed.
+- `checks[]` или checked files — какие anchors проверялись.
+- `warnings[]` — advisory diagnostics, например хрупкие e2e locators.
+- `blockers[]` — нарушения обязательных UI anchors при strict UI checks.
+
+```text
+runs/<run>/output/validation_result.json
+```
+
+Результат `task validate`: список steps, команды, статусы, duration, stdout/stderr excerpts и общий validation status.
+
+```text
+runs/<run>/output/repair_context.json
+```
+
+Компактный вход для repair phase. Содержит failure summary, failing validation steps, boundary/static issues, allowed file plan и подсказки для целевого repair. Repair-agent читает этот файл как основной стартовый контекст.
+
+```text
+runs/<run>/workspace/prototype/output/agent_reports/*.json
+```
+
+Отчеты, которые пишет OpenCode внутри workspace: `plan_proposal.json`, `validation_plan_proposal.json`, `plan_review.json`, `implementation_report.json`, `change_manifest.json`, `repair_report.json`. Pipeline копирует/использует их для promotion, validation, traceability и diagnostics.
 
 ```text
 runs/<run>/dist/prototype_artifact.zip
@@ -965,8 +1221,8 @@ python3 tools/run_pipeline.py \
 Параметры `run_pipeline.py`:
 
 - `--run` — runtime-директория запуска.
-- `--kit` — kit directory для sync architecture contract, generation rules, inputs и instructions.
-- `--sync-prompts` — обновить run prompt snapshots из kit prompt files.
+- `--kit` — kit directory для sync architecture contract, generation rules, inputs и materialized runtime context.
+- `--sync-prompts` — собрать и обновить run prompt snapshots по `prompt_manifest`.
 - `--clean` — очистить output/logs/usage/dist и reset workspace перед запуском.
 - `--clean-root-prototype-output` — вместе с `--clean` удалить stale `./prototype/output` artifacts в root проекта.
 - `--keep-plan-inputs` — вместе с `--clean` сохранить existing `file_plan.json` и `validation_plan.json`.

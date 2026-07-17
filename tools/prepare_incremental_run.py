@@ -6,6 +6,7 @@ from pathlib import Path
 
 from common import copytree_clean, run_cmd
 from prepare_workspace import INPUT_FILES, OPTIONAL_INPUT_FILES
+from kit_runtime import copy_kit_runtime
 
 RUNTIME_DIRS = [
     ".git",
@@ -65,24 +66,14 @@ def _remove_runtime(workspace: Path) -> None:
         pyc.unlink(missing_ok=True)
 
 
-def _copy_kit_runtime(kit: Path, workspace: Path) -> None:
-    for name in ["AGENTS.md", "opencode.json", "Taskfile.yml"]:
-        src = kit / name
-        if src.exists():
-            shutil.copy2(src, workspace / name)
-    for folder in ["agents", "instructions", "examples", "prompts"]:
-        src = kit / folder
-        if src.exists():
-            dst = workspace / folder
-            if dst.exists():
-                shutil.rmtree(dst)
-            shutil.copytree(src, dst)
+def _copy_kit_baseline_overlay(kit: Path, workspace: Path) -> None:
     for rel in KIT_BASELINE_OVERLAY_FILES:
         src = kit / "template" / rel
         dst = workspace / rel
-        if src.exists():
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
+        if not src.exists():
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
 
 
 def _copy_baseline_context(from_run: Path, input_dir: Path, workspace_input: Path) -> None:
@@ -131,7 +122,8 @@ def main() -> None:
 
     copytree_clean(source_workspace, workspace)
     _remove_runtime(workspace)
-    _copy_kit_runtime(args.kit, workspace)
+    copy_kit_runtime(args.kit, workspace)
+    _copy_kit_baseline_overlay(args.kit, workspace)
 
     workspace_input = workspace / "prototype" / "input"
     workspace_output = workspace / "prototype" / "output"
